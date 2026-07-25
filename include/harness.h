@@ -81,6 +81,22 @@ struct HarnessWarpArg
     u8 y;
 };
 
+enum HarnessBattleKind
+{
+    HKIND_SINGLE = 0,
+    HKIND_DOUBLE,
+    HKIND_DOUBLE_TWO_OPPONENTS,     // Tate & Liza
+};
+
+// HCMD_TRAINER_BATTLE payload.
+struct HarnessTrainerBattleArg
+{
+    u16 trainerId;
+    u16 trainerIdB;                 // HKIND_DOUBLE_TWO_OPPONENTS only
+    u8  kind;                       // enum HarnessBattleKind
+    u8  padding[3];
+};
+
 // HCMD_SET_PARTY payload: a u32 count followed by `count` of these.
 //
 // The count is u32 rather than u8 solely for alignment. These specs contain u32

@@ -1,5 +1,7 @@
 #include "global.h"
 #include "harness.h"
+#include "battle.h"
+#include "battle_setup.h"
 #include "field_screen_effect.h"
 #include "move.h"
 #include "overworld.h"
@@ -25,6 +27,10 @@ EWRAM_DATA struct HarnessMailbox gHarnessMailbox = {0};
 static EWRAM_DATA bool8 sWarpPending = FALSE;
 static EWRAM_DATA u8 sWarpTargetGroup = 0;
 static EWRAM_DATA u8 sWarpTargetNum = 0;
+
+// Same reasoning as the warp: a battle spans many frames and the field callback
+// does not run during it, so completion cannot be detected inline.
+static EWRAM_DATA bool8 sBattlePending = FALSE;
 
 #define HARNESS_DISPATCH_TASK_PRIORITY 80
 
@@ -76,6 +82,56 @@ static bool8 Harness_WarpArrived(void)
     // field is running again; the map identity is the remaining question.
     return gSaveBlock1Ptr->location.mapGroup == sWarpTargetGroup
         && gSaveBlock1Ptr->location.mapNum == sWarpTargetNum;
+}
+
+// Bypasses the overworld and script paths entirely (spec §4.4). Both of those
+// converge on BattleSetup_StartTrainerBattle, which derives gBattleTypeFlags
+// from approaching-trainer state the harness has none of, and which routes the
+// ending through post-battle dialogue and reward scripts. The _Debug variant
+// skips all of that and returns straight to the field.
+//
+// Party, levels, movesets, held items, AI flags and single/double all derive
+// from trainer data. No roster is duplicated here.
+static void Harness_TrainerBattle(void)
+{
+    const struct HarnessTrainerBattleArg *arg =
+        (const struct HarnessTrainerBattleArg *)gHarnessMailbox.payloadIn;
+
+    if (gHarnessMailbox.payloadInLen < sizeof(*arg))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+
+    gBattleTypeFlags = BATTLE_TYPE_TRAINER;
+    TRAINER_BATTLE_PARAM.opponentA = arg->trainerId;
+    TRAINER_BATTLE_PARAM.opponentB = 0xFFFF;
+
+    switch (arg->kind)
+    {
+    case HKIND_SINGLE:
+        break;
+    case HKIND_DOUBLE:
+        gBattleTypeFlags |= BATTLE_TYPE_DOUBLE;
+        break;
+    case HKIND_DOUBLE_TWO_OPPONENTS:
+        TRAINER_BATTLE_PARAM.opponentB = arg->trainerIdB;
+        gBattleTypeFlags |= BATTLE_TYPE_DOUBLE | BATTLE_TYPE_TWO_OPPONENTS;
+        break;
+    default:
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+
+    // Cleared so the dispatch task can use it as the battle-finished signal:
+    // the field callback does not run during a battle, so the next tick with a
+    // non-zero outcome is the first frame back on the overworld.
+    gBattleOutcome = 0;
+    sBattlePending = TRUE;
+
+    gBattleEnvironment = BattleSetup_GetEnvironmentId();
+    CalculateEnemyPartyCount();
+    BattleSetup_StartTrainerBattle_Debug();
 }
 
 static void Harness_SetParty(void)
@@ -148,6 +204,22 @@ void Task_HarnessDispatch(u8 taskId)
         return;
     }
 
+    // Likewise an in-flight battle. gBattleOutcome is the signal: it is cleared
+    // at request time and the field callback does not run again until the
+    // battle has ended, so a non-zero value here means we are back and done.
+    if (sBattlePending)
+    {
+        if (gBattleOutcome != 0)
+        {
+            sBattlePending = FALSE;
+            gHarnessMailbox.payloadOut[0] = gBattleOutcome;
+            Harness_Ok(1);
+            gHarnessMailbox.command = HCMD_NONE;
+            gHarnessMailbox.sequence++;
+        }
+        return;
+    }
+
     if (gHarnessMailbox.status != HSTAT_CMD_PENDING)
         return;
 
@@ -169,6 +241,13 @@ void Task_HarnessDispatch(u8 taskId)
         Harness_Warp();
         return;
     case HCMD_TRAINER_BATTLE:
+        // Asynchronous for the same reason; finished by the sBattlePending
+        // branch. A malformed payload fails synchronously, though, so only
+        // return early if the command was actually accepted.
+        Harness_TrainerBattle();
+        if (sBattlePending)
+            return;
+        break;
     case HCMD_ROLL_ENCOUNTER:
     case HCMD_ATTEMPT_CATCH:
     case HCMD_SET_LEVEL:

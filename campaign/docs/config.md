@@ -51,7 +51,31 @@ Only changes behind `harness.h` are gated for free.
 
 Consequence: the harness build and the tested build are not the same build. `make check`
 green does **not** prove the harness patches are correct — only that they did not break the
-engine underneath. The patches themselves are verified by smoke tests A and B (§14.1–14.2).
+engine underneath.
+
+### Verifying a harness patch: run upstream's tests against it
+
+The gate above also gives us a way to prove a patch *works*, without needing a smoke test
+that plays a whole battle. Temporarily set `HARNESS_ENABLED TRUE` in `test.h`, run the
+upstream tests that assert the behaviour being suppressed, and check they now fail. Restore
+`test.h` and confirm they pass again — the control matters, or a failure for some unrelated
+reason reads as success.
+
+Done for the EXP patch:
+
+```
+# HARNESS_ENABLED TRUE  in test.h
+make check TESTS="Higher leveled Pokemon give more exp"   ->  FAIL   (exit 2)
+# HARNESS_ENABLED FALSE in test.h  (restored)
+make check TESTS="Higher leveled Pokemon give more exp"   ->  PASS   (exit 0)
+```
+
+That is a stronger result than a scripted battle would give, and far cheaper. Note `TESTS=`
+filters on the test's *name prefix*, not its filename — `TESTS="exp"` matches nothing and
+reports "No tests found", which is easy to misread as success since it exits 0.
+
+Not yet verified this way: the battle-style patch. There is no upstream test asserting Shift
+behaviour to invert.
 
 ### EXP: why `BattleTypeAllowsExp`, not the award path
 
