@@ -1145,4 +1145,19 @@
 //  Move animation testing
 #define T_SHOULD_RUN_MOVE_ANIM  FALSE       //  If TRUE, enables the move animation tests, these are very computationally heavy and takes a long time to run.
 
+// The nuzlocke harness disables EXP gain and forces Set battle style, both of
+// which would invalidate upstream tests that assert stock behaviour. The suite
+// must keep measuring the engine, not the harness, so it stays our regression
+// gate: see campaign/docs/config.md.
+#undef HARNESS_ENABLED
+#define HARNESS_ENABLED         FALSE
+
+// EV gain is disabled for the harness via an ordinary upstream constant, so
+// unlike the HARNESS_ENABLED patches it is not gated by the guard above and
+// would otherwise apply to the test build too. Tests assert on EV yields
+// (test/battle/exp.c, test/battle/move_effect/embargo.c), so restore stock
+// behaviour here.
+#undef B_EV_CAP_TYPE
+#define B_EV_CAP_TYPE           EV_CAP_NONE
+
 #endif // GUARD_CONFIG_TEST_H

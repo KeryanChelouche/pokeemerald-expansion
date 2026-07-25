@@ -3818,6 +3818,13 @@ FEATURE_FLAG_ASSERT(I_EXP_SHARE_FLAG, YouNeedToSetTheExpShareFlagToAnUnusedFlag)
 
 static bool32 BattleTypeAllowsExp(void)
 {
+#if HARNESS_ENABLED && HARNESS_DISABLE_EXP
+    // The harness sets levels explicitly; EXP gain would cause mid-battle
+    // level-ups, offering moves and triggering evolutions outside any decision
+    // point the agent is asked about. Returning FALSE here makes Cmd_getexp
+    // take its existing "goto last case" path, so no partial award can occur.
+    return FALSE;
+#endif
     if (RECORDED_WILD_BATTLE)
         return TRUE;
     else if (gBattleTypeFlags &

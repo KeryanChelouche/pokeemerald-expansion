@@ -2,26 +2,80 @@
 
 Supersedes spec §3.1. **Spec §3.2 (vanilla Gen 3 mechanics) is deleted** — see `mechanics.md`.
 
-Status column: ✅ already correct in stock 1.16.3 · ✏️ config edit needed ·
-🔧 source patch needed · ⚙️ runtime/save state, not a config header.
+Status: ✅ correct in stock 1.16.3, no action · **DONE** applied on `harness/m0` ·
+⚙️ deferred to harness runtime (save-block state, not a config header).
 
-Nothing here is applied yet. Apply only after a green stock `make` + `make check` baseline,
-so a build failure is attributable.
+| Setting | Constant | Target | Status |
+|---|---|---|---|
+| Reusable TMs OFF | `I_REUSABLE_TMS` (`config/item.h:26`) | `FALSE` | ✅ |
+| Fast HP drain | `B_FAST_HP_DRAIN` (`config/battle.h:323`) | `TRUE` | ✅ |
+| Fast intro text | `B_FAST_INTRO_PKMN_TEXT` (`config/battle.h:321`) | `TRUE` | ✅ |
+| Time-of-day encounters OFF | `OW_TIME_OF_DAY_ENCOUNTERS` (`config/overworld.h:95`) | `FALSE` — **pin, determinism** | ✅ |
+| Overworld wild encounters OFF | `WE_OW_ENCOUNTERS` (`config/wild_encounter.h`) | `FALSE` — **pin**, keeps `wild_encounter.c` authoritative | ✅ |
+| Skip intro slide | `B_FAST_INTRO_NO_SLIDE` (`config/battle.h:322`) | `TRUE` | **DONE** |
+| EV gain disabled | `B_EV_CAP_TYPE` (`config/caps.h:28`) | `EV_CAP_NO_GAIN` | **DONE** |
+| EXP gain disabled | `HARNESS_DISABLE_EXP` (`config/harness.h`) | patch `BattleTypeAllowsExp` | **DONE** |
+| Battle style = Set | `HARNESS_FORCE_BATTLE_STYLE_SET` (`config/harness.h`) | force, not save option | **DONE** |
+| Wild encounters off by default | `WE_FLAG_NO_ENCOUNTER` (`config/wild_encounter.h:6`) | a real unused `FLAG_*` | ⚙️ |
+| Instant text | `OPTIONS_TEXT_SPEED_INSTANT` (`constants/global.h:196`) | set at save init | ⚙️ |
+| Battle animations off | `optionsBattleSceneOff` (`global.h:602`) | `TRUE` under headless | ⚙️ |
 
-| Setting | Constant | Stock value | Target | Status |
-|---|---|---|---|---|
-| Reusable TMs OFF | `I_REUSABLE_TMS` (`config/item.h:26`) | `FALSE` | `FALSE` | ✅ |
-| Fast HP drain | `B_FAST_HP_DRAIN` (`config/battle.h:323`) | `TRUE` | `TRUE` | ✅ |
-| Fast intro text | `B_FAST_INTRO_PKMN_TEXT` (`config/battle.h:321`) | `TRUE` | `TRUE` | ✅ |
-| Time-of-day encounters OFF | `OW_TIME_OF_DAY_ENCOUNTERS` (`config/overworld.h:95`) | `FALSE` | `FALSE` — **pin, determinism** | ✅ |
-| Overworld wild encounters OFF | `WE_OW_ENCOUNTERS` (`config/wild_encounter.h`) | `FALSE` | `FALSE` — **pin**, keeps `wild_encounter.c` authoritative | ✅ |
-| Skip intro slide | `B_FAST_INTRO_NO_SLIDE` (`config/battle.h:322`) | `FALSE` | `TRUE` | ✏️ |
-| EV gain disabled | `B_EV_CAP_TYPE` (`config/caps.h`) | `EV_CAP_NONE` | `EV_CAP_NO_GAIN` | ✏️ |
-| Wild encounters off by default | `WE_FLAG_NO_ENCOUNTER` (`config/wild_encounter.h:6`) | `0` (feature off) | a real unused `FLAG_*` | ✏️ |
-| EXP gain disabled at source | — | — | patch `Cmd_getexp` region | 🔧 |
-| Battle style = Set | `gBattleScripting.battleStyle` (`battle_main.c:2988`) | reads save option | force unconditionally | 🔧 |
-| Instant text | `OPTIONS_TEXT_SPEED_INSTANT` (`constants/global.h:196`) | save option | set at save init | ⚙️ |
-| Battle animations off | `optionsBattleSceneOff` (`global.h:602`) | `FALSE` (`new_game.c:106`) | `TRUE` under headless | ⚙️ |
+## How the source patches are guarded
+
+All ROM modifications live behind `include/config/harness.h`. Setting `HARNESS_ENABLED`
+to `FALSE` yields a stock expansion build, which keeps the fork merge-able with upstream
+(spec §4).
+
+`include/config/test.h` sets `HARNESS_ENABLED FALSE`, using upstream's own `#undef` /
+`#define` override pattern. **This is load-bearing.** Without it, disabling EXP fails every
+upstream test that asserts EXP behaviour and `make check` stops being a usable regression
+gate. The suite must measure the engine, not the harness.
+
+### Two kinds of change, and only one is gated
+
+This distinction caused a real regression and will recur:
+
+| Kind | Example | Gated by `HARNESS_ENABLED`? |
+|---|---|---|
+| Source patch routed through `harness.h` | EXP off, battle style forced | **Yes** — automatic |
+| Plain upstream constant | `B_EV_CAP_TYPE`, `B_FAST_INTRO_NO_SLIDE` | **No** — applies to the test build too |
+
+Setting `B_EV_CAP_TYPE = EV_CAP_NO_GAIN` broke two tests that assert on EV yields
+(`test/battle/exp.c:153`, `test/battle/move_effect/embargo.c:94` — the former is an EXP test
+whose third assertion is on `MON_DATA_HP_EV`, which makes it easy to misread as an EXP
+failure). `test.h` now restores `EV_CAP_NONE` for tests.
+
+**Rule for future config edits:** changing an ordinary upstream constant means asking
+whether any test asserts on the behaviour it controls. If so, override it back in `test.h`.
+Only changes behind `harness.h` are gated for free.
+
+Consequence: the harness build and the tested build are not the same build. `make check`
+green does **not** prove the harness patches are correct — only that they did not break the
+engine underneath. The patches themselves are verified by smoke tests A and B (§14.1–14.2).
+
+### EXP: why `BattleTypeAllowsExp`, not the award path
+
+Spec §4.8 says to disable EXP "at source" in the `Cmd_getexp` region. The better hook is
+`BattleTypeAllowsExp()` (`src/battle_script_commands.c:3819`) — a predicate whose entire
+job is deciding whether EXP is awarded. Returning `FALSE` makes `Cmd_getexp` take its own
+existing `getexpState = 6 // goto last case` branch, so no partial award is reachable by
+construction.
+
+Zeroing `calculatedExp` (`:3925`) instead would **not** work: the redistribution code floors
+each mon's share at 1 (`if (*exp == 0) *exp = 1;`), so every participant would still gain a
+point of EXP per faint.
+
+EV gain is a genuinely separate path and needs no patch — `EV_CAP_NO_GAIN` handles it
+(`src/caps.c:112`). §4.8's insistence that these are two code paths is confirmed correct.
+
+## Still to do (⚙️)
+
+`WE_FLAG_NO_ENCOUNTER` needs an unused `FLAG_*` assigned and set at run start. Since §4.5
+triggers encounters explicitly via `HCMD_ROLL_ENCOUNTER` and the player never walks, this
+is defence-in-depth rather than load-bearing.
+
+Instant text and battle animations are save-block option bits, not config constants. They
+must be written during save initialisation by the harness — M1 work, not a header edit.
 
 ## Notes on the ✏️ / 🔧 / ⚙️ rows
 

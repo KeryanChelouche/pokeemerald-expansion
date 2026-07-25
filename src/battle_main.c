@@ -2986,7 +2986,7 @@ static void ClearSetBScriptingStruct(void)
 
     gBattleScripting.windowsType = temp;
     gBattleScripting.battleStyle = gSaveBlock2Ptr->optionsBattleStyle;
-    #if TESTING
+    #if TESTING || (HARNESS_ENABLED && HARNESS_FORCE_BATTLE_STYLE_SET)
     gBattleScripting.battleStyle = OPTIONS_BATTLE_STYLE_SET;
     #endif
     gBattleScripting.expOnCatch = (GetConfig(B_EXP_CATCH) >= GEN_6);
