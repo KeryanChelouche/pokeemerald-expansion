@@ -66,3 +66,6 @@ tools/aif2pcm/aif2pcm
 *.smolTM
 __pycache__
 .map_version
+
+# harness generated symbol table (tools/harness_syms)
+harness_symbols.json

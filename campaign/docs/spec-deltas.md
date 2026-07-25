@@ -1,0 +1,248 @@
+# Spec deltas — v1.1 → v1.1a
+
+Two decisions, taken in order:
+
+1. **The `@smogon/calc` service is removed.** (Reverses v1.0 → v1.1's central change.)
+2. **The calc charge economy is dropped entirely** — not rebuilt on the ROM's own
+   calculator.
+
+Consequence of (1) alone: no second calculator, so no parity requirement, so §3.2's
+Gen 3 pinning is unnecessary. See `mechanics.md`.
+
+Consequence of (2): all agent tools are free, and every section that priced, budgeted,
+cached, logged or measured charges is void.
+
+This file is the authoritative list of what that touches. The spec document itself is not
+edited; read it alongside this.
+
+---
+
+## Deleted outright
+
+| Section | Content |
+|---|---|
+| §3.2 | Vanilla Gen 3 mechanics table |
+| §10 | Calc service — library, inputs, outputs |
+| §10.4 | Differential test, methods A and B |
+| §15 #1 | Calc charge starting pool and per-badge increment |
+| §15 #2 | `calc_scope` and `cache_invalidation` final values |
+
+## Invariants (§1.2)
+
+| # | Was | Now |
+|---|---|---|
+| 1 | ROM pinned to Gen 3; calc verified equivalent by §10.4 | **Void.** No second calculator exists. |
+| 3 | Calc service MUST be fed the ROM's computed stats, not IVs/EVs/nature | **Reframed, not void.** Nothing is fed to a calculator, but §4.9's serializer and `team_state()` MUST still emit all six computed stat values — that is what the agent reasons from. The requirement survives; its justification changes. |
+| 4 | One emulator instance during an attempt | Unchanged, and now *easier*: the differential test was one of the three offline consumers §3.4 had to keep out of the live path. |
+
+Invariants 2, 5, 6, 7, 8 unaffected.
+
+## §3.3 Toolchain — substituted
+
+The spec calls for the standard pret build (devkitARM/agbcc). Two corrections:
+
+- **agbcc is gone.** Deprecated since expansion 1.9 (`Makefile:341`); the build is
+  modern-only. `make agbcc` prints a deprecation notice and does nothing.
+- **devkitARM was unreachable** — `apt.devkitpro.org` returns Cloudflare 403 from this
+  environment, so the official installer cannot run. Ubuntu's `gcc-arm-none-eabi` 13.2.1
+  is used instead via `TOOLCHAIN=/usr`, which is the override `INSTALL.md:102` documents.
+
+**Verified equivalent for our purposes:** `make check` passes on this toolchain — 4887
+passed, 13 known-failing, exit 0. The 13 are upstream-acknowledged, not toolchain damage.
+
+`make compare` against `rom.sha1` will never match, but that is true of any `MODERN=1`
+expansion build and is unrelated to the substitution. Our ROM identity is its own sha1,
+recorded in `harness_symbols.json` and the ledger.
+
+## §3.4 Emulator — rearchitected
+
+The spec requires "mGBA ≥ 0.10 with Lua scripting, headless under `xvfb`". **The premise is
+wrong: no released mGBA can do this.**
+
+Lua scripting exists in 0.10, but only through the Qt frontend's GUI scripting window.
+There is no `--script` flag in the SDL frontend in 0.10.2 (Ubuntu), 0.10.5 (latest release),
+or current master. Verified empirically rather than from documentation: mGBA 0.10.2 ran the
+built ROM headless under xvfb for 25 s without ever executing a probe script passed via
+`-C script=`.
+
+**Resolution: `mgba-headless`.** mGBA master ships a dedicated headless frontend
+(`src/platform/headless-main.c`) taking `--script FILE`, repeatable. It is gated behind
+`BUILD_HEADLESS=OFF`, which is why no distro package contains it. Built from source with:
+
+```
+cmake .. -DBUILD_HEADLESS=ON -DENABLE_SCRIPTING=ON -DBUILD_QT=OFF -DBUILD_SDL=OFF \
+         -DUSE_LUA=ON -DUSE_LIBZIP=OFF -DUSE_MINIZIP=OFF -DUSE_FFMPEG=OFF
+make mgba-headless
+```
+
+`USE_LIBZIP=OFF` works around a broken `libzip-targets.cmake` in Ubuntu's `libzip-dev`;
+zip support is irrelevant for raw `.gba` files.
+
+This is **better** than what §3.4 specified. The frontend is headless by construction, not
+by suppression — no X server, no `xvfb`, no video pipeline to disable. Drop `xvfb` from the
+live run path; `render/` still needs a real frontend for §12's 1× capture.
+
+**Cost: it is unreleased code.** Pinned to mGBA master `c034660`. That commit hash is part
+of the reproducibility tuple and MUST be recorded in the ledger header alongside `rom_hash`
+— §12's replay guarantee is meaningless if the emulator drifts.
+
+Verified working end to end: script loads, `callbacks:add("frame", ...)` fires, and
+`emu:read8/read32` return correct data from the running ROM.
+
+## §2 Components
+
+- `calc-service/` — deleted.
+- `harness/economy/` — was "calc charges, matchup cache, empirical log". Charges and the
+  matchup cache are gone; only the empirical log survives. Fold it into `harness/agent/`
+  or rename to `harness/empirical/`. There is no economy left to name a package after.
+
+## §4 ROM modifications
+
+- `HCMD_CALC_TESTONLY` / `Harness_CalcTestOnly` — removed from the §4.3 dispatch table.
+  It existed only for §10.4.
+- §4.9 serializer — **unchanged**, including all six computed stats (see invariant 3 above).
+- §4.7 battle event emission — unchanged. The events fed the ledger, the empirical log and
+  the differential test; the first two remain.
+
+## §5 Wire protocol
+
+- `calc_testonly` — removed from the §5.1 command table.
+
+## §8.1 Referee state
+
+- `charges: int` — removed.
+
+Nothing else in referee state was calc-derived. §8.2 duties are unchanged: no duty
+mentioned charges.
+
+## §9.4 Tools
+
+The table collapses to its free rows. Removed: the `calc` row, the cache paragraph, the
+budget paragraph, the `calc_scope` config, the `cache_invalidation` config, and the
+"one charge = one target" definition.
+
+Retained, and now more load-bearing than before:
+
+> The agent MAY assert unpaid numeric estimates; the harness MUST log every numeric claim
+> for post-hoc comparison and MUST NOT block it.
+
+With nothing purchasable, **every** numeric claim the agent makes is unpaid and unverified
+at decision time. §13.3's "accuracy of unpaid numeric assertions" stops being a side metric
+and becomes the primary read on whether the agent's damage reasoning is any good.
+
+## §9.3 Context assembly
+
+Item 3 lists "charges remaining" among the always-present context. Remove it. Items 1, 2,
+4, 5, 6 unchanged — note item 4's "empirical log entries relevant to the present matchup"
+is now the agent's only quantitative input beyond raw stats.
+
+## §11 Ledger
+
+- `calc_spend` event type — removed.
+- `charges_left` field — removed from `decision_request` and from `calc_spend`'s siblings.
+- `avoidable` field — removed from the `death` event, along with the rule that it MUST be
+  null at write time (see §13.3).
+- `node` and `location` — **added** to the `death` event (see §13.3).
+
+All other event types unchanged. The ledger is not otherwise reduced: it still drives
+replay verification (§12) and the footage overlay, which serve objective A and are
+independent of what the evaluation reports.
+
+## §12 Replay, footage, offline analysis
+
+- Overlay track (`render/`) listed "charges remaining" as an overlay element. Remove it.
+- **Post-hoc avoidability — removed.** Dropping the calc initially made this *more*
+  expensive: with no cheap one-turn path, every death would have needed an offline emulator
+  rollout. The §13.3 decision below removes `avoidable-death rate`, its only consumer, so
+  the whole avoidability analysis is cut rather than paid for. See "This resolves the
+  avoidability problem" under §13.3.
+
+## §13.3 Metrics — replaced
+
+Third decision: **post-run evaluation is streamlined to two numbers.**
+
+> Badges obtained. Deaths — how many, and where.
+
+The entire §13.3 table is replaced by that. Removed from **Mechanical**: attempts to first
+completion, deaths per badge, avoidable-death rate, illegal actions proposed, cost and
+latency per badge, standing-order coverage. Removed entirely: the **Economy** block (already
+half-gone with the charge economy) and the **Narrative** block — dossier reference rate,
+plan adherence, stated-intent consistency.
+
+"Deaths per badge" is not retained as a metric but is trivially recoverable from the two
+numbers if wanted; there is no need to compute it during a run.
+
+Human review of rendered footage remains the instrument for objective A, as §13.3 already
+said. It is a judgement, not a metric, and is unaffected by this.
+
+### This resolves the avoidability problem
+
+`avoidable-death rate` was the sole consumer of post-hoc avoidability. With it gone:
+
+- §12's *"For each death, determine whether a legal alternative existed that survived with
+  p > 0.9"* — **removed**. This was going to require an offline emulator rollout per death
+  once the calc service was dropped, which was the most expensive open consequence in this
+  document. It is now moot.
+- §11's `avoidable` field, and the rule that it *"MUST be null at write time and filled only
+  by the post-hoc analyser"* — **removed** from the death event.
+- `harness/eval/`'s post-hoc analyser — reduced to tallying the ledger. The offline emulator
+  rollout path it needed is no longer required, which also removes the last routine consumer
+  of a second emulator instance (§3.4, invariant 4).
+
+### One gap: "where" is not currently in the death record
+
+§11's `death` event carries `caught_at` (where the Pokémon was *caught*) but no field for
+where it *died*. The node is available on the surrounding `decision_request` events and so
+is recoverable by scanning backwards, but that is fragile for something now half of the
+entire evaluation.
+
+**Add `node` and `location` to the `death` event** so it is self-contained:
+
+```json
+{"f": 186112, "t": 1419, "type": "death", "mon_uid": "a3f1", "nickname": "Pylon",
+ "species": "SPECIES_MANECTRIC", "caught_at": "MAPSEC_ROUTE_110",
+ "node": "gym03_wattson", "location": "MAP_MAUVILLE_CITY_GYM",
+ "turns_alive": 4021, "cause": "MOVE_SHOCK_WAVE",
+ "circumstance": "designated_sacrifice", "held_tms": ["TM24_THUNDERBOLT"]}
+```
+
+`cause` and `circumstance` are retained — not for metrics, but because §9.5 requires event
+notifications to vary by circumstance, and §9.2's graveyard store records both.
+
+### §13.1 / §13.2 unchanged for now
+
+The fixed suite and the baselines measure agent quality *before* a run; this decision was
+about what a completed run reports. They are untouched, and M5 still stands. If the
+intent was to cut those too, say so — the fixed suite is ~30 hand-built positions and is
+the single largest piece of work in the evaluation harness.
+
+## §14 Milestones
+
+**M3** was: *Calc service, differential test methods A and B, documentation pack, calc
+economy, empirical log.* Its acceptance test was *differential test green; charge accounting
+exact.*
+
+What remains is the **documentation pack (§8.3)** and the **empirical log**. Neither is
+large, and both are prerequisites for M4 rather than a milestone in their own right. M3
+should be dissolved into M2 (documentation pack — the campaign loader already needs it for
+constant resolution) and M4 (empirical log — an agent memory store per §9.2).
+
+The spec's closing line *"M3 now gates the agent on differential-test success. Do not build
+M4 against an unverified calculator."* is void. **M4 is no longer gated.** With M0–M2 done,
+the agent can be built directly.
+
+M0, M1, M2, M5, M6, M7 unaffected.
+
+---
+
+## What this does not change
+
+The removals are all downstream of the oracle. The parts of the design that produce the
+run — the referee and ruleset (§6, §8), the campaign table (§7), the agent's identity,
+memory and prompt constraints (§9.1–9.3, §9.5–9.9), replay determinism (§12), and the
+narrative objective A — are untouched.
+
+The one design claim that is now untested is §9.4's argument that scarcity produces
+interesting play. Nothing in v1.1a is scarce except locations, TMs, and lives. That may be
+enough; it is no longer a question the harness can answer, because there is no charge budget
+to instrument.
