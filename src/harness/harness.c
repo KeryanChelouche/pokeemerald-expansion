@@ -1,7 +1,13 @@
 #include "global.h"
 #include "harness.h"
+#include "field_screen_effect.h"
+#include "move.h"
+#include "overworld.h"
+#include "pokemon.h"
 #include "script_pokemon_util.h"
 #include "task.h"
+#include "constants/battle.h"
+#include "constants/characters.h"
 
 // Mailbox and dispatch task (spec §4.2-§4.3).
 //
@@ -11,6 +17,14 @@
 #if HARNESS_ENABLED
 
 EWRAM_DATA struct HarnessMailbox gHarnessMailbox = {0};
+
+// A warp does not complete on the frame it is requested, and loading a map
+// resets tasks. This state therefore cannot live in the task's data: it lives
+// in EWRAM, which survives the map load, and Harness_EnsureDispatchTask
+// recreates the task on the far side.
+static EWRAM_DATA bool8 sWarpPending = FALSE;
+static EWRAM_DATA u8 sWarpTargetGroup = 0;
+static EWRAM_DATA u8 sWarpTargetNum = 0;
 
 #define HARNESS_DISPATCH_TASK_PRIORITY 80
 
@@ -33,8 +47,107 @@ static void Harness_Heal(void)
     Harness_Ok(0);
 }
 
+// Reports completion only once the player is actually standing on the target
+// map. Returning HSTAT_IDLE when DoWarp is merely *requested* would let the
+// harness roll an encounter against the map it was leaving, which invariant 2
+// exists to prevent.
+static void Harness_Warp(void)
+{
+    const struct HarnessWarpArg *arg = (const struct HarnessWarpArg *)gHarnessMailbox.payloadIn;
+
+    if (gHarnessMailbox.payloadInLen < sizeof(*arg))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+
+    sWarpTargetGroup = arg->mapGroup;
+    sWarpTargetNum = arg->mapNum;
+    sWarpPending = TRUE;
+
+    SetWarpDestination(arg->mapGroup, arg->mapNum, WARP_ID_NONE, arg->x, arg->y);
+    DoWarp();
+    ResetInitialPlayerAvatarState();
+}
+
+static bool8 Harness_WarpArrived(void)
+{
+    // The task only ticks from OverworldBasic, so reaching here at all means the
+    // field is running again; the map identity is the remaining question.
+    return gSaveBlock1Ptr->location.mapGroup == sWarpTargetGroup
+        && gSaveBlock1Ptr->location.mapNum == sWarpTargetNum;
+}
+
+static void Harness_SetParty(void)
+{
+    const u8 *p = gHarnessMailbox.payloadIn;
+    u32 count = *(const u32 *)p;
+    u32 i, j;
+
+    // The count is u32, not u8, purely for alignment: the specs that follow it
+    // contain u32 fields, and ARM cannot load those from an odd address. A u8
+    // count would put every spec 1 byte out and silently return rotated
+    // garbage for `personality`.
+    if (count > PARTY_SIZE
+     || gHarnessMailbox.payloadInLen < sizeof(u32) + count * sizeof(struct HarnessMonSpec))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+
+    ZeroPlayerPartyMons();
+
+    for (i = 0; i < count; i++)
+    {
+        const struct HarnessMonSpec *spec =
+            (const struct HarnessMonSpec *)(p + sizeof(u32) + i * sizeof(struct HarnessMonSpec));
+        struct Pokemon *mon = &gParties[B_TRAINER_PLAYER][i];
+
+        CreateMon(mon, spec->species, spec->level, spec->personality, OTID_STRUCT_PLAYER_ID);
+
+        for (j = 0; j < NUM_STATS; j++)
+        {
+            SetMonData(mon, MON_DATA_HP_IV + j, &spec->ivs[j]);
+            SetMonData(mon, MON_DATA_HP_EV + j, &spec->evs[j]);
+        }
+
+        for (j = 0; j < MAX_MON_MOVES; j++)
+        {
+            u32 pp = GetMovePP(spec->moves[j]);
+            SetMonData(mon, MON_DATA_MOVE1 + j, &spec->moves[j]);
+            SetMonData(mon, MON_DATA_PP1 + j, &pp);
+        }
+
+        SetMonData(mon, MON_DATA_HELD_ITEM, &spec->heldItem);
+        SetMonData(mon, MON_DATA_ABILITY_NUM, &spec->abilityNum);
+        if (spec->nickname[0] != EOS)
+            SetMonData(mon, MON_DATA_NICKNAME, spec->nickname);
+
+        // Must follow the IV and EV writes: stats are derived from them, and
+        // CreateMon computed them from the values it generated, not these.
+        CalculateMonStats(mon);
+    }
+
+    gPartiesCount[B_TRAINER_PLAYER] = count;
+    Harness_Ok(0);
+}
+
 void Task_HarnessDispatch(u8 taskId)
 {
+    // An in-flight warp owns the mailbox until it lands. Nothing else may run,
+    // or a command would be answered against the wrong map.
+    if (sWarpPending)
+    {
+        if (Harness_WarpArrived())
+        {
+            sWarpPending = FALSE;
+            Harness_Ok(0);
+            gHarnessMailbox.command = HCMD_NONE;
+            gHarnessMailbox.sequence++;
+        }
+        return;
+    }
+
     if (gHarnessMailbox.status != HSTAT_CMD_PENDING)
         return;
 
@@ -47,7 +160,14 @@ void Task_HarnessDispatch(u8 taskId)
     case HCMD_HEAL:
         Harness_Heal();
         break;
+    case HCMD_SET_PARTY:
+        Harness_SetParty();
+        break;
     case HCMD_WARP:
+        // Completes asynchronously; the sWarpPending branch above finishes the
+        // handshake, so this must not fall through to the sequence increment.
+        Harness_Warp();
+        return;
     case HCMD_TRAINER_BATTLE:
     case HCMD_ROLL_ENCOUNTER:
     case HCMD_ATTEMPT_CATCH:
@@ -59,7 +179,6 @@ void Task_HarnessDispatch(u8 taskId)
     case HCMD_RELEASE:
     case HCMD_SET_FLAG:
     case HCMD_DUMP_STATE:
-    case HCMD_SET_PARTY:
     case HCMD_SET_SEED:
     case HCMD_DECISION:
         Harness_Fail(HERR_NOT_IMPLEMENTED);

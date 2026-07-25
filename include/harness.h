@@ -72,6 +72,44 @@ struct HarnessMailbox
 
 extern struct HarnessMailbox gHarnessMailbox;
 
+// HCMD_WARP payload.
+struct HarnessWarpArg
+{
+    u8 mapGroup;
+    u8 mapNum;
+    u8 x;
+    u8 y;
+};
+
+// HCMD_SET_PARTY payload: a u32 count followed by `count` of these.
+//
+// The count is u32 rather than u8 solely for alignment. These specs contain u32
+// fields and ARM cannot load those from an unaligned address, so a u8 count
+// would place every spec 1 byte out and yield rotated garbage rather than a
+// fault.
+//
+// Deviation from spec §5.1, which specifies `{showdown_text}`. Parsing Showdown
+// text on a GBA would be a large amount of fragile string handling for no gain:
+// the Python side can parse it and send this instead. Text parsing belongs in
+// Python; the ROM stays dumb.
+//
+// `personality` is supplied rather than derived, because in Gen 3 it determines
+// nature, gender and shininess. Letting the harness choose it keeps every one of
+// those deterministic and puts the search for "a personality with nature X" in
+// Python rather than in the ROM.
+struct HarnessMonSpec
+{
+    u32 personality;
+    u16 species;
+    u16 heldItem;
+    u16 moves[MAX_MON_MOVES];
+    u8  level;
+    u8  abilityNum;
+    u8  ivs[NUM_STATS];
+    u8  evs[NUM_STATS];
+    u8  nickname[POKEMON_NAME_LENGTH + 1];
+};
+
 void Task_HarnessDispatch(u8 taskId);
 void Harness_EnsureDispatchTask(void);
 
