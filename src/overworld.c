@@ -28,6 +28,7 @@
 #include "fldeff.h"
 #include "follower_npc.h"
 #include "gpu_regs.h"
+#include "harness.h"
 #include "heal_location.h"
 #include "io_reg.h"
 #include "item.h"
@@ -1865,6 +1866,9 @@ static void OverworldBasic(void)
         }
     }
     UpdateOverworldWildEncounter();
+#if HARNESS_ENABLED
+    Harness_EnsureDispatchTask();
+#endif
 }
 
 // This CB2 is used when starting
