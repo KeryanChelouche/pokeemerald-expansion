@@ -80,6 +80,44 @@ def nickname_payload(slot: int, name: str, charmap) -> bytes:
         NICK_PAYLOAD, b"\xff")
 
 
+def load_families(root: pathlib.Path, species_names) -> dict[int, int]:
+    """species id -> family id, from the decomp evolution table (R4).
+
+    R4 counts the whole evolution family as a dupe, including members that are
+    dead, so families are built by unioning every evolution edge rather than by
+    looking only one step ahead.
+    """
+    ids = {name: sid for sid, name in
+           ((s, "SPECIES_" + n.upper().replace(" ", "_")) for s, n in species_names.items())}
+    parent: dict[int, int] = {}
+
+    def find(a):
+        while parent.get(a, a) != a:
+            a = parent[a]
+        return a
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+
+    pat_species = re.compile(r"^\s*\[(SPECIES_[A-Z0-9_]+)\]\s*=", re.M)
+    for path in sorted((root / "src/data/pokemon/species_info").glob("*.h")):
+        txt = path.read_text(errors="replace")
+        marks = [(m.start(), m.group(1)) for m in pat_species.finditer(txt)]
+        for i, (pos, name) in enumerate(marks):
+            end = marks[i + 1][0] if i + 1 < len(marks) else len(txt)
+            body = txt[pos:end]
+            m = re.search(r"\.evolutions\s*=\s*EVOLUTION\((.*?)\),?\s*\n", body, re.S)
+            if not m or name not in ids:
+                continue
+            for tgt in re.findall(r"(SPECIES_[A-Z0-9_]+)", m.group(1)):
+                if tgt in ids:
+                    union(ids[name], ids[tgt])
+
+    return {sid: find(sid) for sid in ids.values()}
+
+
 def load_constants(path: pathlib.Path, prefix: str) -> dict[str, int]:
     """NAME -> value for `#define NAME v` and `NAME = v,` enum styles."""
     out, counter = {}, 0
@@ -147,7 +185,7 @@ def build_party(mons) -> bytes:
 
 # struct HarnessPartyView: 2+2+2+1+1+13+1. The name is 13 bytes because
 # POKEMON_NAME_LENGTH is 12, not 10.
-PARTY_VIEW = 22
+PARTY_VIEW = 24
 NICK_OFF, NICK_LEN = 8, 13
 OFF_PARTY_V = 180    # after padding2
 
@@ -178,8 +216,12 @@ class Runner:
                                       "MAPSEC_")
         self.maps = load_maps(ROOT / "include/constants/map_groups.h")
         self.rosters = parse_rosters(ROOT / "src/data/trainers.party")
+        self.families = load_families(ROOT, self.species)
+        self.owned_families: set[int] = set()   # R4: includes dead members
         self.capabilities = set(START_CAPABILITIES)
         self.starter = None
+        self.last_was_dupe = False
+        self.last_caught_species = 0
         self.team = []                       # [(nickname, species_name)]
         self.beaten = set()
         self.spent = {}                      # mapsec -> outcome (R2/R3)
@@ -248,6 +290,61 @@ class Runner:
         for line in decode_text(raw, self.charmap):
             print(f"   | {line}")
 
+    def level_cap(self, nodes):
+        """R8: the cap is the next fight's highest level.
+
+        With free ordering the agent chooses when to take a fight, so the cap
+        tracks the pending fight rather than a fixed schedule position.
+        """
+        fight = self.next_fight(nodes)
+        if fight is None:
+            return None
+        return max(m["level"] for m in self.rosters[fight["trainer_resolved"]]["mons"])
+
+    def level_to_cap(self, sess, nodes):
+        cap = self.level_cap(nodes)
+        if cap is None:
+            print("  no pending fight, so no cap to level to")
+            return
+        out, _ = sess.run(S.HCMD_DUMP_STATE)
+        count = struct.unpack_from("<I", out, 0)[0]
+        print(f"\n  Level cap is {cap} (next fight's strongest)")
+        for i in range(count):
+            off = 4 + i * PARTY_VIEW
+            sp, hp, mx, lv, alive = struct.unpack_from("<3HBB", out, off)
+            nick = decode_text(out[off + NICK_OFF:off + NICK_OFF + NICK_LEN] + b"\xff",
+                               self.charmap)
+            who = (nick[0] if nick else "?")
+            if lv >= cap:
+                print(f"    {who} already Lv{lv}")
+                continue
+            reply, _ = sess.run(S.HCMD_SET_LEVEL, struct.pack("<BB2x", i, cap))
+            n = struct.unpack_from("<I", reply, 0)[0]
+            moves = [struct.unpack_from("<H", reply, 4 + k * 2)[0] for k in range(n)]
+            names = [self.moves.get(m, f"#{m}") for m in moves]
+            print(f"    {who} Lv{lv} -> Lv{cap}")
+            if names:
+                # §4.8: these are offered, not auto-learned. TEACH_MOVE is not
+                # implemented yet, so they are reported and nothing is applied.
+                print(f"       learnable now: {', '.join(names)}")
+                print(f"       (teach_move not implemented; nothing learned yet)")
+
+    def summary(self, sess):
+        """Full party detail between battles (§4.9 via HCMD_DUMP_STATE)."""
+        out, _ = sess.run(S.HCMD_DUMP_STATE)
+        count = struct.unpack_from("<I", out, 0)[0]
+        print(f"\n  Party ({count}):")
+        for i in range(count):
+            off = 4 + i * PARTY_VIEW
+            sp, hp, mx, lv, alive = struct.unpack_from("<3HBB", out, off)
+            nick = decode_text(out[off + NICK_OFF:off + NICK_OFF + NICK_LEN] + b"\xff",
+                               self.charmap)
+            who = nick[0] if nick else "?"
+            fam = self.family(sp)
+            print(f"    {i + 1}. {who:<12} {self.species.get(sp, f'#{sp}'):<12} "
+                  f"Lv{lv:<3} HP {hp:>3}/{mx:<3} "
+                  f"{'' if alive else '(fainted)'}  family={fam}")
+
     def show_state(self):
         print("\n  Your team:")
         for nick, sp in self.team:
@@ -280,9 +377,26 @@ class Runner:
         return lines
 
     # -- decisions ----------------------------------------------------------
+    def family(self, species_id):
+        return self.families.get(species_id, species_id)
+
     def choose(self, raw, txt):
         self.show_text(txt)
-        r = decode(raw, self.species, self.moves)
+        r = decode(raw, self.species, self.moves, self.charmap)
+
+        # R4/R3, enforced by the referee before the agent sees the list (§8.2):
+        # a dupe cannot be caught, and the location is not spent by meeting one.
+        foe = r["battlers"].get(1)
+        if foe is not None:
+            self.last_caught_species = foe.species
+        if r.get("is_wild") and foe is not None:
+            if self.family(foe.species) in self.owned_families:
+                r["ball_allowed"] = 0
+                if not self.last_was_dupe:      # announce once per encounter
+                    print(f"   ! {foe.name} is a dupe of a family you already own — "
+                          f"no ball, and this location is not spent (R3/R4)")
+                self.last_was_dupe = True
+
         menu = render(r)
         if self.args.auto:
             print(f" auto-> {menu[0][0]}")
@@ -306,6 +420,7 @@ class Runner:
 
     # -- actions ------------------------------------------------------------
     def do_fight(self, sess, nd):
+        self.last_was_dupe = False
         kind = 0 if nd.get("battle_kind", "single") == "single" else 1
         out, txt = sess.run(S.HCMD_TRAINER_BATTLE,
                             struct.pack("<HHB3x", self.trainers[nd["trainer_resolved"]],
@@ -334,6 +449,7 @@ class Runner:
                     draw = avail[int(pk) - 1]
                     break
 
+        self.last_was_dupe = False
         group, num = self.maps[draw["map"]]
         sess.run(S.HCMD_WARP, struct.pack("<4B", group, num, 5, 5))
         out, txt = sess.run(S.HCMD_ROLL_ENCOUNTER,
@@ -346,9 +462,15 @@ class Runner:
         self.spent[nd["mapsec"]] = OUTCOMES.get(code, str(code))
         print(f"\n  == {nd['id']}: {OUTCOMES.get(code, code)} ==")
 
+        if self.last_was_dupe:
+            # R3: only a dupe permits a reroll, so the location stays open.
+            self.spent.pop(nd["mapsec"], None)
+            print("  location remains open (dupe)")
+
         if code == 7:
             slot = self.party_slots
             self.party_slots += 1
+            self.owned_families.add(self.family(self.last_caught_species))
             nick = self.ask_nickname("new catch", f"CAUGHT{slot}")
             sess.run(S.HCMD_SET_NICKNAME, nickname_payload(slot, nick, self.charmap))
             self.team.append((nick, nd["mapsec"]))
@@ -372,6 +494,8 @@ class Runner:
         _, sp_id, label = STARTERS[self.starter]
         nick = self.ask_nickname(f"{label}", label)
         self.team.append((nick, label))
+        # The starter counts as owned for R4, so its whole line is a dupe.
+        self.owned_families.add(self.family(sp_id))
         return sp_id, nick
 
     def main(self):
@@ -410,8 +534,15 @@ class Runner:
                     kind, nd = options[0]
                 else:
                     while True:
-                        pk = input(f"\n  Choose [1-{len(options)}], (h)eal, (q)uit: ")\
+                        pk = input(f"\n  Choose [1-{len(options)}], (s)ummary, "
+                                   f"(l)evel to cap, (h)eal, (q)uit: ")\
                             .strip().lower()
+                        if pk in ("s", "summary"):
+                            self.summary(sess)
+                            continue
+                        if pk in ("l", "level"):
+                            self.level_to_cap(sess, nodes)
+                            continue
                         if pk in ("h", "heal"):
                             sess.run(S.HCMD_HEAL)
                             print("  party healed (HP, status and PP)")

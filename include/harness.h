@@ -206,6 +206,28 @@ struct HarnessPartyView
     u8  padding[1];
 };
 
+// HCMD_SET_LEVEL payload, and its reply.
+//
+// Setting the level with SetMonData bypasses the normal level-up path, which is
+// also what offers level-up moves and triggers evolution (§4.8). So the reply
+// lists the level-up moves learnable at or below the new level that the Pokemon
+// does not already know; omitting it would silently strip movesets from an
+// entire run.
+struct HarnessSetLevelArg
+{
+    u8  slot;
+    u8  level;
+    u8  padding[2];
+};
+
+#define HARNESS_MAX_LEARNABLE 24
+
+struct HarnessLearnable
+{
+    u32 count;
+    u16 moves[HARNESS_MAX_LEARNABLE];
+};
+
 // HCMD_SET_NICKNAME payload. The name is in ROM character encoding, EOS
 // terminated; encoding it is the harness's job, as with battle text.
 struct HarnessNicknameArg
@@ -213,6 +235,14 @@ struct HarnessNicknameArg
     u8 slot;
     u8 padding[3];
     u8 name[POKEMON_NAME_LENGTH + 1];
+};
+
+// HCMD_DUMP_STATE reply: the party as the agent sees it outside battle. Reuses
+// HarnessPartyView so there is one layout to keep in step, not two.
+struct HarnessStateDump
+{
+    u32 count;
+    struct HarnessPartyView party[PARTY_SIZE];
 };
 
 // Written to payloadOut when status becomes HSTAT_DECISION_PENDING.

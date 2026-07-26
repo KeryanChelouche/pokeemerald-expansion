@@ -343,6 +343,105 @@ static void Harness_SetFlag(void)
 // R5: every caught Pokemon must be nicknamed, and an empty name is rejected.
 // Enforced here rather than trusted to the caller, because a blank nickname is
 // invisible in play and would only surface in the graveyard at the end of a run.
+// Party state outside battle (spec §4.9, partial). The decision request already
+// carries this during a battle; the agent needs it between battles too, to decide
+// what to level, evolve or bring to the next fight.
+static void Harness_DumpState(void)
+{
+    struct HarnessStateDump *out = (struct HarnessStateDump *)gHarnessMailbox.payloadOut;
+    struct Pokemon *party = gParties[B_TRAINER_PLAYER];
+    u32 i;
+
+    memset(out, 0, sizeof(*out));
+    out->count = gPartiesCount[B_TRAINER_PLAYER];
+
+    for (i = 0; i < PARTY_SIZE; i++)
+    {
+        u32 species = GetMonData(&party[i], MON_DATA_SPECIES_OR_EGG);
+
+        out->party[i].species = species;
+        out->party[i].hp = GetMonData(&party[i], MON_DATA_HP);
+        out->party[i].maxHP = GetMonData(&party[i], MON_DATA_MAX_HP);
+        out->party[i].level = GetMonData(&party[i], MON_DATA_LEVEL);
+        out->party[i].isLegalSwitch = species != SPECIES_NONE
+                                   && GetMonData(&party[i], MON_DATA_HP) != 0;
+        GetMonData(&party[i], MON_DATA_NICKNAME, out->party[i].nickname);
+    }
+
+    Harness_Ok(sizeof(*out));
+}
+
+// §4.8: levels are set explicitly because EXP is disabled. CalculateMonStats
+// must follow, and the learnable-move list must be returned, because neither
+// happens on this path the way it would on a natural level-up.
+static void Harness_SetLevel(void)
+{
+    const struct HarnessSetLevelArg *arg =
+        (const struct HarnessSetLevelArg *)gHarnessMailbox.payloadIn;
+    struct HarnessLearnable *out =
+        (struct HarnessLearnable *)gHarnessMailbox.payloadOut;
+    struct Pokemon *mon;
+    u32 i, j, n, known;
+    u8 level;
+
+    if (gHarnessMailbox.payloadInLen < sizeof(*arg))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+    if (arg->slot >= PARTY_SIZE
+     || GetMonData(&gParties[B_TRAINER_PLAYER][arg->slot], MON_DATA_SPECIES_OR_EGG) == SPECIES_NONE)
+    {
+        Harness_Fail(HERR_BAD_SLOT);
+        return;
+    }
+
+    mon = &gParties[B_TRAINER_PLAYER][arg->slot];
+    level = arg->level;
+
+    // EXP has to be set, not just the level. CalculateMonStats begins with
+    // GetLevelFromMonExp (src/pokemon.c:1378), so writing MON_DATA_LEVEL alone
+    // is silently undone the moment stats are recalculated -- the level reverts
+    // to whatever the untouched EXP implies. §4.8 warns about this path; this is
+    // the concrete form it takes.
+    {
+        enum Species species = GetMonData(mon, MON_DATA_SPECIES);
+        u32 exp = gExperienceTables[gSpeciesInfo[species].growthRate][level];
+
+        SetMonData(mon, MON_DATA_EXP, &exp);
+    }
+    SetMonData(mon, MON_DATA_LEVEL, &level);
+    CalculateMonStats(mon);
+
+    memset(out, 0, sizeof(*out));
+
+    // Walk the learnset directly rather than GetLevelUpMovesBySpecies, which
+    // returns every level-up move with no level attached. Offering moves the
+    // Pokemon has not reached yet would let the agent teach an illegal move and
+    // look entirely legitimate doing it (§4.8: at or below the new level).
+    {
+        const struct LevelUpMove *learnset =
+            GetSpeciesLevelUpLearnset(GetMonData(mon, MON_DATA_SPECIES));
+
+        for (i = 0; learnset[i].move != LEVEL_UP_MOVE_END
+                    && out->count < HARNESS_MAX_LEARNABLE; i++)
+        {
+            if (learnset[i].level > level)
+                continue;
+            known = FALSE;
+            for (j = 0; j < MAX_MON_MOVES; j++)
+            {
+                if (GetMonData(mon, MON_DATA_MOVE1 + j) == learnset[i].move)
+                    known = TRUE;
+            }
+            if (!known)
+                out->moves[out->count++] = learnset[i].move;
+        }
+    }
+
+    Harness_Ok(sizeof(*out));
+}
+
 static void Harness_SetNickname(void)
 {
     const struct HarnessNicknameArg *arg =
@@ -515,6 +614,12 @@ void Task_HarnessDispatch(u8 taskId)
     case HCMD_SET_NICKNAME:
         Harness_SetNickname();
         break;
+    case HCMD_DUMP_STATE:
+        Harness_DumpState();
+        break;
+    case HCMD_SET_LEVEL:
+        Harness_SetLevel();
+        break;
     case HCMD_ROLL_ENCOUNTER:
         // Asynchronous like trainer_battle: finished by the sBattlePending
         // branch once the encounter battle ends.
@@ -536,13 +641,11 @@ void Task_HarnessDispatch(u8 taskId)
             return;
         break;
     case HCMD_ATTEMPT_CATCH:
-    case HCMD_SET_LEVEL:
     case HCMD_TEACH_MOVE:
     case HCMD_EVOLVE:
     case HCMD_GIVE_ITEM:
     case HCMD_PARTY_ARRANGE:
     case HCMD_RELEASE:
-    case HCMD_DUMP_STATE:
     case HCMD_DECISION:
         Harness_Fail(HERR_NOT_IMPLEMENTED);
         break;

@@ -59,6 +59,13 @@ OFF_MOVES = OFF_BATTLERS + MAX_BATTLERS * VIEW_SIZE      # 152
 OFF_LEGAL_MOVES = OFF_MOVES + MAX_MOVES * 4              # 168
 OFF_LEGAL_SWITCH = OFF_LEGAL_MOVES + MAX_MOVES           # 172
 OFF_PARTY = OFF_LEGAL_SWITCH + PARTY_SIZE + 2            # 180 (explicit padding2)
+# struct HarnessPartyView stride, MEASURED against the ROM rather than derived.
+# Hand-computing it was wrong three times: the compiler pads it to 24, not the
+# 20 or 22 the field list suggests. Getting it wrong does not fail loudly, it
+# prints plausible nonsense like "Lv255 HP 51919/65475", so check_request_size
+# below turns a future mismatch into an error instead.
+PARTY_VIEW = 24
+NICK_OFF, NICK_LEN = 8, 13
 OFF_IS_WILD, OFF_BALL_ALLOWED = 6, 7
 
 # Encounter methods, mirroring enum HarnessEncounterMethod.
@@ -66,7 +73,20 @@ METHODS = {"grass": 0, "surf": 1, "rocksmash": 2,
            "rod_old": 3, "rod_good": 4, "rod_super": 5}
 # MAP_ROUTE101 = (16 | (0 << 8)) in include/constants/map_groups.h.
 DEFAULT_MAP = (0, 16)
-REQUEST_SIZE = OFF_PARTY + PARTY_SIZE * 8                # 226
+REQUEST_SIZE = OFF_PARTY + PARTY_SIZE * PARTY_VIEW       # 324
+
+
+def check_request_size(raw: bytes) -> None:
+    """Fail loudly if the ROM's request is not the size we decode.
+
+    A silent mismatch is the failure mode this whole file is careful about: every
+    field still parses, just from the wrong place.
+    """
+    if len(raw) != REQUEST_SIZE:
+        raise SystemExit(
+            f"decision request is {len(raw)} bytes but this decoder expects "
+            f"{REQUEST_SIZE}. struct HarnessDecisionRequest changed; update "
+            f"PARTY_VIEW / the OFF_* offsets in harness/play.py.")
 
 SPEC_FMT = "<IHH4HBB6B6B11s3x"
 
@@ -182,7 +202,8 @@ class Battler:
         return " ".join(s)
 
 
-def decode(raw: bytes, species_names, move_names) -> dict:
+def decode(raw: bytes, species_names, move_names, charmap=None) -> dict:
+    check_request_size(raw)
     r = {}
     (r["battler"], r["n_moves"], r["n_switch"], r["is_double"],
      r["n_battlers"], r["alive"], r["is_wild"], r["ball_allowed"]) = \
@@ -198,9 +219,15 @@ def decode(raw: bytes, species_names, move_names) -> dict:
     r["legal_switch"] = list(struct.unpack_from("<6B", raw, OFF_LEGAL_SWITCH))[:r["n_switch"]]
     r["party"] = []
     for i in range(PARTY_SIZE):
-        sp, hp, mx, lv, legal = struct.unpack_from("<3HBB", raw, OFF_PARTY + i * 8)
+        off = OFF_PARTY + i * PARTY_VIEW
+        sp, hp, mx, lv, legal = struct.unpack_from("<3HBB", raw, off)
+        nick = ""
+        if charmap is not None:
+            got = decode_text(raw[off + NICK_OFF:off + NICK_OFF + NICK_LEN] + b"\xff",
+                              charmap)
+            nick = got[0] if got else ""
         r["party"].append({"species": sp, "hp": hp, "maxhp": mx, "level": lv,
-                           "legal": bool(legal),
+                           "legal": bool(legal), "nick": nick,
                            "name": species_names.get(sp, f"#{sp}")})
     return r
 
@@ -239,7 +266,8 @@ def render(r: dict) -> list[tuple]:
                              (HACT_MOVE, slot, tid)))
     for slot in r["legal_switch"]:
         p = r["party"][slot]
-        menu.append((f"Switch to {p['name']:<12} Lv{p['level']} HP {p['hp']}/{p['maxhp']}",
+        who = f"{p['nick']} ({p['name']})" if p["nick"] else p["name"]
+        menu.append((f"Switch to {who:<24} Lv{p['level']} HP {p['hp']}/{p['maxhp']}",
                      (HACT_SWITCH, slot, HTARGET_DEFAULT)))
     # §4.6: only offered when the referee authorised a catch for this encounter.
     if r.get("ball_allowed"):
