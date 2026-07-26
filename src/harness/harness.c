@@ -2,6 +2,7 @@
 #include "harness.h"
 #include "battle.h"
 #include "battle_setup.h"
+#include "event_data.h"
 #include "field_screen_effect.h"
 #include "move.h"
 #include "overworld.h"
@@ -34,6 +35,31 @@ static EWRAM_DATA u8 sWarpTargetNum = 0;
 static EWRAM_DATA bool8 sBattlePending = FALSE;
 
 #define HARNESS_DISPATCH_TASK_PRIORITY 80
+
+EWRAM_DATA struct HarnessTextLog gHarnessTextLog = {0};
+
+// Appends one battle line, EOS-terminated so a reader can split records.
+//
+// Called from BattlePutTextOnWindow, which every battle message funnels
+// through, so nothing that appears on screen is missed. Deliberately does no
+// filtering: deciding which lines matter is the harness's job, and a line
+// dropped here is unrecoverable.
+void Harness_LogBattleText(const u8 *text)
+{
+    u32 i;
+
+    if (text == NULL)
+        return;
+
+    for (i = 0; i < HARNESS_TEXTLOG_SIZE && text[i] != EOS; i++)
+    {
+        gHarnessTextLog.buf[gHarnessTextLog.written % HARNESS_TEXTLOG_SIZE] = text[i];
+        gHarnessTextLog.written++;
+    }
+
+    gHarnessTextLog.buf[gHarnessTextLog.written % HARNESS_TEXTLOG_SIZE] = EOS;
+    gHarnessTextLog.written++;
+}
 
 static void Harness_Fail(enum HarnessError err)
 {
@@ -155,6 +181,22 @@ static void Harness_SetSeed(void)
     Harness_Ok(0);
 }
 
+// Progression flags are the driver's responsibility because battle scripts are
+// bypassed (spec §7.3). Badge flags in particular are not bookkeeping: a
+// Pokemon above the obedience level for the badges held will ignore orders,
+// nap, or hit itself, which looks exactly like a broken decision hook.
+static void Harness_SetFlag(void)
+{
+    if (gHarnessMailbox.payloadInLen < sizeof(u16))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+
+    FlagSet(*(const u16 *)gHarnessMailbox.payloadIn);
+    Harness_Ok(0);
+}
+
 static void Harness_SetParty(void)
 {
     const u8 *p = gHarnessMailbox.payloadIn;
@@ -259,6 +301,9 @@ void Task_HarnessDispatch(u8 taskId)
     case HCMD_SET_SEED:
         Harness_SetSeed();
         break;
+    case HCMD_SET_FLAG:
+        Harness_SetFlag();
+        break;
     case HCMD_WARP:
         // Completes asynchronously; the sWarpPending branch above finishes the
         // handshake, so this must not fall through to the sequence increment.
@@ -280,7 +325,6 @@ void Task_HarnessDispatch(u8 taskId)
     case HCMD_GIVE_ITEM:
     case HCMD_PARTY_ARRANGE:
     case HCMD_RELEASE:
-    case HCMD_SET_FLAG:
     case HCMD_DUMP_STATE:
     case HCMD_DECISION:
         Harness_Fail(HERR_NOT_IMPLEMENTED);

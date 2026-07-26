@@ -73,6 +73,35 @@ struct HarnessMailbox
 extern struct HarnessMailbox gHarnessMailbox;
 
 // ---------------------------------------------------------------------------
+// Battle text log (spec §4.7 battle events)
+//
+// Every line the battle would print is captured here, in ROM character
+// encoding, terminated by EOS. Without it the agent sees state snapshots with
+// no account of what happened between them: whether a move missed, what the
+// opponent did, whether a hit was critical or ineffective.
+//
+// A ring buffer with a monotonic byte counter, rather than a queue the ROM has
+// to manage: the ROM only ever appends and never blocks, and a reader that
+// falls behind loses old text instead of stalling the battle. Readers track
+// their own position against `written`.
+//
+// Text is emitted raw rather than decoded here. Decoding needs charmap.txt,
+// which belongs on the Python side; the ROM stays dumb.
+// ---------------------------------------------------------------------------
+
+#define HARNESS_TEXTLOG_SIZE 4096
+
+struct HarnessTextLog
+{
+    u32 written;                        // total bytes ever appended, monotonic
+    u8  buf[HARNESS_TEXTLOG_SIZE];
+};
+
+extern struct HarnessTextLog gHarnessTextLog;
+
+void Harness_LogBattleText(const u8 *text);
+
+// ---------------------------------------------------------------------------
 // Battle decision hook (spec §4.7)
 //
 // The engine asks the player controller twice per turn: once for an action

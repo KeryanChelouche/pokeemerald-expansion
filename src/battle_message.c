@@ -4,6 +4,7 @@
 #include "battle_ai_record.h"
 #include "battle_controllers.h"
 #include "battle_message.h"
+#include "harness.h"
 #include "battle_setup.h"
 #include "battle_special.h"
 #include "battle_z_move.h"
@@ -3816,6 +3817,13 @@ void ExpandBattleTextBuffPlaceholders(const u8 *src, u8 *dst)
 void BattlePutTextOnWindow(const u8 *text, u8 windowId)
 {
     const struct BattleWindowText *textInfo = sBattleTextOnWindowsInfo[gBattleScripting.windowsType];
+
+#if HARNESS_ENABLED
+    // Capture only the main message window: the others hold the action menu and
+    // move list, which the agent already receives as enumerated actions.
+    if ((windowId & ~B_WIN_COPYTOVRAM) == B_WIN_MSG)
+        Harness_LogBattleText(text);
+#endif
     bool32 copyToVram;
     struct TextPrinterTemplate printerTemplate;
     u8 speed;

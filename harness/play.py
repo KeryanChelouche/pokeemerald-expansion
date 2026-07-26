@@ -36,7 +36,15 @@ import tempfile
 import time
 
 # --- mailbox / request layout: mirrors include/harness.h ---------------------
-HCMD_TRAINER_BATTLE, HCMD_SET_PARTY, HCMD_SET_SEED, HCMD_DECISION = 2, 14, 15, 16
+HCMD_TRAINER_BATTLE, HCMD_SET_FLAG, HCMD_SET_PARTY = 2, 12, 14
+HCMD_SET_SEED, HCMD_DECISION = 15, 16
+
+# SYSTEM_FLAGS (TRAINER_FLAGS_END + 1) + 0x7 .. +0xE, per include/constants/flags.h.
+# Granted so the party actually obeys: a Pokemon above the obedience level for
+# the badges held will refuse orders, nap, or hit itself, which is easy to
+# mistake for a broken decision hook.
+SYSTEM_FLAGS = 0x860
+BADGE_FLAGS = [SYSTEM_FLAGS + 0x7 + i for i in range(8)]
 HSTAT_DECISION_PENDING = 2
 HACT_MOVE, HACT_SWITCH = 0, 1
 HTARGET_DEFAULT = 0xFF
@@ -56,8 +64,72 @@ SPEC_FMT = "<IHH4HBB6B6B11s3x"
 # Battler id -> human label. Doubles layout per §4.9.
 SLOT_NAMES = {0: "your left", 1: "foe left", 2: "your right", 3: "foe right"}
 
-STATUS_BITS = [(1 << 3, "SLP"), (1 << 4, "PSN"), (1 << 5, "BRN"),
-               (1 << 6, "FRZ"), (1 << 7, "PAR"), (1 << 8, "TOX")]
+# Mirrors STATUS1_* in include/constants/battle.h. Sleep is not a flag: the low
+# three bits are a turn counter, so it must be masked, not tested bitwise.
+STATUS1_SLEEP_MASK = 0x7
+STATUS_BITS = [(1 << 3, "PSN"), (1 << 4, "BRN"), (1 << 5, "FRZ"),
+               (1 << 6, "PAR"), (1 << 7, "TOX"), (1 << 12, "FRB")]
+
+TEXTLOG_SIZE = 4096
+EOS = 0xFF
+
+# Control bytes that structure a message rather than print a glyph. Line and
+# paragraph breaks become spaces so each battle line reads as one sentence.
+TEXT_CONTROL = {0xFA: " ", 0xFB: " ", 0xFE: " "}
+
+
+# Multi-byte ligatures and control sequences, longest-match first. Without
+# these, `PKMN` (53 54) decodes as two unrelated single-byte glyphs and reads as
+# mojibake. FD xx are text-buffer placeholders the battle engine substitutes.
+MULTI = {
+    (0x53, 0x54): "POKéMON",
+    (0xFD, 0x01): "{PLAYER}",
+    (0xFD, 0x02): "{VAR1}",
+    (0xFD, 0x03): "{VAR2}",
+    (0xFD, 0x04): "{VAR3}",
+}
+
+
+def load_charmap(path: pathlib.Path) -> dict[int, str]:
+    """Byte -> character from charmap.txt, single-byte quoted entries.
+
+    charmap.txt assigns several bytes twice (a Latin glyph and a Japanese kana
+    share 0x53), so later entries must not overwrite earlier ones -- hence
+    setdefault. Multi-byte sequences are handled by MULTI above.
+    """
+    out = {}
+    pat = re.compile(r"^'(.)'\s*=\s*([0-9A-Fa-f]{2})\s*$")
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        m = pat.match(line.strip())
+        if m:
+            out.setdefault(int(m.group(2), 16), m.group(1))
+    out[0x53] = "PK"      # only reached when not part of the PKMN ligature
+    out[0x39] = " "       # NBSP; charmap also spells it '~', which prints as one
+    out[0x3A] = ""        # ZWS
+    return out
+
+
+def decode_text(raw: bytes, charmap: dict[int, str]) -> list[str]:
+    """Split the EOS-terminated records and decode each to a readable line."""
+    lines, cur, i = [], [], 0
+    while i < len(raw):
+        b = raw[i]
+        pair = (b, raw[i + 1]) if i + 1 < len(raw) else None
+        if pair in MULTI:
+            cur.append(MULTI[pair])
+            i += 2
+            continue
+        i += 1
+        if b == EOS:
+            s = "".join(cur).strip()
+            if s:
+                lines.append(s)
+            cur = []
+        elif b in TEXT_CONTROL:
+            cur.append(TEXT_CONTROL[b])
+        else:
+            cur.append(charmap.get(b, ""))
+    return lines
 
 
 def load_names(path: pathlib.Path, prefix: str) -> dict[int, str]:
@@ -82,7 +154,11 @@ class Battler:
         self.name = species_names.get(self.species, f"#{self.species}")
 
     def status(self) -> str:
-        s = [tag for bit, tag in STATUS_BITS if self.status1 & bit]
+        s = []
+        turns = self.status1 & STATUS1_SLEEP_MASK
+        if turns:
+            s.append(f"SLP({turns})")   # turns left matters for the decision
+        s += [tag for bit, tag in STATUS_BITS if self.status1 & bit]
         return " ".join(s)
 
 
@@ -163,11 +239,15 @@ def build_party(species_names) -> bytes:
 LUA = """
 local B = {base}
 local OUT = B + {off_out}
+local TLOG = {tlog}
+local TSIZE = {tsize}
 local DIR = "{dir}"
+local lastW = 0
 local SEED   = {{{seed}}}
 local PARTY  = {{{party}}}
 local BATTLE = {{{battle}}}
-local n, ph, reqN, awaiting = 0, 0, 0, false
+local n, ph, reqN, awaiting, badge = 0, 0, 0, false, 1
+local BADGES = {{{badges}}}
 
 local function send(cmd, b)
   for i, v in ipairs(b) do emu:write8(B + 12 + i - 1, v) end
@@ -184,8 +264,12 @@ callbacks:add("frame", function()
   if n == 1201 then emu:setKeys(0) end
 
   if n == 1300 and ph == 0 then send({c_seed}, SEED); ph = 1
-  elseif ph == 1 and seq() >= 1 then send({c_party}, PARTY); ph = 2
-  elseif ph == 2 and seq() >= 2 then send({c_battle}, BATTLE); ph = 3
+  elseif ph == 1 and seq() >= 1 and badge <= #BADGES then
+    send({c_flag}, {{BADGES[badge] % 256, math.floor(BADGES[badge] / 256)}})
+    badge = badge + 1
+  elseif ph == 1 and badge > #BADGES and seq() >= 1 + #BADGES then
+    send({c_party}, PARTY); ph = 2
+  elseif ph == 2 and seq() >= 2 + #BADGES then send({c_battle}, BATTLE); ph = 3
   elseif ph == 3 then
     if (n % 16) < 5 then emu:setKeys(1) else emu:setKeys(0) end
 
@@ -196,6 +280,19 @@ callbacks:add("frame", function()
       for i = 0, len - 1 do parts[#parts + 1] = string.format("%02X", emu:read8(OUT + i)) end
       local w = io.open(DIR .. "/req_" .. reqN, "w")
       w:write(table.concat(parts)); w:close()
+
+      -- Only the bytes appended since the last request, so the driver sees the
+      -- narration for exactly the turn that just resolved.
+      local nowW = emu:read32(TLOG)
+      local tp = {{}}
+      local i = lastW
+      while i < nowW do
+        tp[#tp + 1] = string.format("%02X", emu:read8(TLOG + 4 + (i % TSIZE)))
+        i = i + 1
+      end
+      lastW = nowW
+      local tw = io.open(DIR .. "/txt_" .. reqN, "w")
+      tw:write(table.concat(tp)); tw:close()
       awaiting = true
     end
 
@@ -209,7 +306,7 @@ callbacks:add("frame", function()
       end
     end
 
-    if seq() >= 3 and emu:read16(B + 2) == 0 and emu:read16(B + 10) == 1 then
+    if seq() >= 3 + #BADGES and emu:read16(B + 2) == 0 and emu:read16(B + 10) == 1 then
       emu:setKeys(0)
       local w = io.open(DIR .. "/END", "w")
       w:write(string.format("%d", emu:read8(OUT))); w:close()
@@ -246,13 +343,17 @@ def main() -> int:
     species_names = load_names(root / "include/constants/species.h", "SPECIES_")
     move_names = load_names(root / "include/constants/moves.h", "MOVE_")
 
-    base = json.loads(args.symbols.read_text())["symbols"]["gHarnessMailbox"]
+    syms = json.loads(args.symbols.read_text())["symbols"]
+    base, tlog = syms["gHarnessMailbox"], syms["gHarnessTextLog"]
+    charmap = load_charmap(root / "charmap.txt")
     kind = 0 if args.kind == "single" else 1
 
     with tempfile.TemporaryDirectory() as td:
         d = pathlib.Path(td)
         (d / "play.lua").write_text(LUA.format(
             base=base, off_out=OFF_PAYLOAD_OUT, dir=d,
+            tlog=tlog, tsize=TEXTLOG_SIZE, c_flag=HCMD_SET_FLAG,
+            badges=",".join(map(str, BADGE_FLAGS)),
             seed=",".join(map(str, struct.pack("<I", args.seed))),
             party=",".join(map(str, build_party(species_names))),
             battle=",".join(map(str, struct.pack("<HHB3x", args.trainer, 0, kind))),
@@ -292,6 +393,11 @@ def main() -> int:
                     time.sleep(0.02)
                     continue
                 served += 1
+
+                tfile = d / f"txt_{served}"
+                if tfile.exists():
+                    for line in decode_text(bytes.fromhex(tfile.read_text()), charmap):
+                        print(f"   | {line}")
 
                 menu = render(decode(raw, species_names, move_names))
                 if not menu:
