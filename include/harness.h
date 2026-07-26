@@ -122,14 +122,23 @@ struct HarnessMoveView
 // Only actions listed here are legal (§4.7): a move with no PP is absent, and a
 // fainted or already-active party member is not a switch target. The agent must
 // choose from this list; illegal actions are impossible rather than penalised.
+//
+// `battlers` is indexed by battler id, so it doubles as the §4.9 position map.
+// In singles only ids 0 and 1 are populated. In doubles the layout is
+// 0 = player left, 1 = opponent left, 2 = player right, 3 = opponent right;
+// `aliveMask` has one bit per id, and entries for absent battlers are zeroed.
+// The agent is asked once per living player battler each turn, with `battler`
+// naming which one.
 struct HarnessDecisionRequest
 {
     u8  battler;
     u8  numLegalMoves;
     u8  numLegalSwitches;
     u8  isDouble;
-    struct HarnessBattlerView player;
-    struct HarnessBattlerView opponent;
+    u8  numBattlers;
+    u8  aliveMask;
+    u8  padding[2];
+    struct HarnessBattlerView battlers[MAX_BATTLERS_COUNT];
     struct HarnessMoveView moves[MAX_MON_MOVES];
     u8  legalMoveSlots[MAX_MON_MOVES];
     u8  legalSwitchSlots[PARTY_SIZE];
@@ -152,6 +161,7 @@ struct HarnessDecision
 bool8 Harness_BattleChooseAction(u32 battler);
 bool8 Harness_BattleChooseMove(u32 battler);
 bool8 Harness_BattleChoosePokemon(u32 battler);
+void Harness_BattleChooseTarget(u32 battler);
 
 // HCMD_WARP payload.
 struct HarnessWarpArg

@@ -57,10 +57,16 @@ static void Harness_PublishRequest(u32 battler)
     memset(req, 0, sizeof(*req));
     req->battler = battler;
     req->isDouble = IsDoubleBattle();
+    req->numBattlers = gBattlersCount;
 
-    Harness_FillBattlerView(&req->player, battler);
-    Harness_FillBattlerView(&req->opponent,
-                            GetBattlerAtPosition(B_POSITION_OPPONENT_LEFT));
+    // Indexed by battler id so it also serves as the §4.9 position map. Absent
+    // battlers stay zeroed and simply have no aliveMask bit.
+    for (i = 0; i < gBattlersCount && i < MAX_BATTLERS_COUNT; i++)
+    {
+        Harness_FillBattlerView(&req->battlers[i], i);
+        if (IsBattlerAlive(i))
+            req->aliveMask |= 1u << i;
+    }
 
     for (i = 0; i < MAX_MON_MOVES; i++)
     {
@@ -167,6 +173,26 @@ bool8 Harness_BattleChooseMove(u32 battler)
         gMoveSelectionCursor[battler] = sDecision[battler].slot;
 
     return FALSE;   // fall through to the normal controller
+}
+
+// Same principle one stage later. In doubles a move with a selectable target
+// routes through HandleInputChooseTarget, which highlights a default and waits
+// for a confirm. Overriding the highlight here honours the agent's chosen target
+// without reimplementing which targets are selectable for this move.
+//
+// HTARGET_DEFAULT leaves the engine's own default highlighted, which is what
+// singles always wants and what doubles wants for moves with no real choice.
+void Harness_BattleChooseTarget(u32 battler)
+{
+    if (!sHaveDecision[battler]
+     || sDecision[battler].type != HACT_MOVE
+     || sDecision[battler].target == HTARGET_DEFAULT)
+        return;
+
+    if (sDecision[battler].target >= MAX_BATTLERS_COUNT)
+        return;     // out of range: leave the engine's default rather than crash
+
+    gMultiUsePlayerCursor = sDecision[battler].target;
 }
 
 #endif // HARNESS_ENABLED

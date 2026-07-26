@@ -125,6 +125,20 @@ game's own selection code run. Shorter, and correct by construction.
 enumerated list of legal actions and choose from it. That is unchanged, and it is what the
 decision request enforces. Keypresses are an implementation detail beneath it.
 
+### Open risk: the keypress driver is a determinism hazard
+
+The current driver pulses A on a fixed frame cadence to advance messages. That is fine for
+smoke tests but is **not** safe for §12's bit-identical replay: the same decision log replayed
+against a different pulse phase can land keypresses on different frames.
+
+Evidence this is real, not theoretical: one doubles run took 12 decisions where an otherwise
+identical run took 4, and the difference did not reproduce. The decisions were the same; only
+the timing differed.
+
+Before M2's replay verification, message advancement MUST become deterministic — either
+driven by ROM state (advance when the engine is actually waiting) or suppressed at source,
+rather than by a frame-cadence pulse. Do not build replay verification on top of the pulse.
+
 ## §2 Components
 
 - `calc-service/` — deleted.

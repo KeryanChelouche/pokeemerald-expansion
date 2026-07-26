@@ -424,6 +424,12 @@ void HandleInputChooseTarget(enum BattlerId battler)
     enum Move move = GetMonData(GetBattlerMon(battler), MON_DATA_MOVE1 + gMoveSelectionCursor[battler]);
     enum MoveTarget moveTarget = GetBattlerMoveTargetType(battler, move);
 
+#if HARNESS_ENABLED
+    // Override the highlighted target with the agent's choice; the confirm below
+    // then applies it (spec §4.7 doubles targeting).
+    Harness_BattleChooseTarget(battler);
+#endif
+
     DoBounceEffect(gMultiUsePlayerCursor, BOUNCE_HEALTHBOX, 15, 1);
     for (i = 0; i < gBattlersCount; i++)
     {
