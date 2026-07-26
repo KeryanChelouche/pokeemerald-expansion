@@ -3,11 +3,13 @@
 #include "battle.h"
 #include "battle_setup.h"
 #include "event_data.h"
+#include "item.h"
 #include "field_screen_effect.h"
 #include "move.h"
 #include "overworld.h"
 #include "pokemon.h"
 #include "random.h"
+#include "wild_encounter.h"
 #include "script_pokemon_util.h"
 #include "task.h"
 #include "constants/battle.h"
@@ -161,6 +163,109 @@ static void Harness_TrainerBattle(void)
     BattleSetup_StartTrainerBattle_Debug();
 }
 
+// Set by roll_encounter, read by the decision hook. §4.6: a ball throw is legal
+// only when the referee has authorised it for a valid first encounter, so this
+// is never something the agent turns on for itself.
+EWRAM_DATA bool8 gHarnessCatchAllowed = FALSE;
+
+// Rolls on the CURRENT map's tables (spec §4.5), which is why the harness must
+// warp first: met-location is stamped from the map the player is standing on and
+// R2's location registry depends on it (invariant 2).
+static void Harness_RollEncounter(void)
+{
+    const struct HarnessEncounterArg *arg =
+        (const struct HarnessEncounterArg *)gHarnessMailbox.payloadIn;
+    const struct WildPokemonInfo *info = NULL;
+    enum WildPokemonArea area = WILD_AREA_LAND;
+    u16 headerId;
+    enum TimeOfDay timeOfDay;
+
+    if (gHarnessMailbox.payloadInLen < sizeof(*arg))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+
+    headerId = GetCurrentMapWildMonHeaderId();
+    if (headerId == HEADER_NONE)
+    {
+        // This map has no wild table at all. Failing loudly matters: silently
+        // rolling nothing would look like an unlucky empty encounter and would
+        // quietly spend a location.
+        Harness_Fail(HERR_NO_ENCOUNTER_TABLE);
+        return;
+    }
+
+    gHarnessCatchAllowed = arg->ballAllowed;
+
+    // §4.6 locks the bag, so the ball the agent may throw has to be put there by
+    // the harness. Without stock the throw script has nothing to consume and the
+    // battle stalls rather than reporting a failure.
+    if (arg->ballAllowed && !CheckBagHasItem(ITEM_POKE_BALL, 1))
+        AddBagItem(ITEM_POKE_BALL, HARNESS_BALL_STOCK);
+    gBattleOutcome = 0;
+    sBattlePending = TRUE;
+
+    // Rods run through the game's own fishing path, which picks the species and
+    // starts the battle itself.
+    switch (arg->method)
+    {
+    case HENC_ROD_OLD:
+        FishingWildEncounter(OLD_ROD);
+        return;
+    case HENC_ROD_GOOD:
+        FishingWildEncounter(GOOD_ROD);
+        return;
+    case HENC_ROD_SUPER:
+        FishingWildEncounter(SUPER_ROD);
+        return;
+    case HENC_GRASS:
+        area = WILD_AREA_LAND;
+        break;
+    case HENC_SURF:
+        area = WILD_AREA_WATER;
+        break;
+    case HENC_ROCKSMASH:
+        area = WILD_AREA_ROCKS;
+        break;
+    default:
+        sBattlePending = FALSE;
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+
+    timeOfDay = GetTimeOfDayForEncounters(headerId, area);
+    switch (area)
+    {
+    case WILD_AREA_LAND:
+        info = gWildMonHeaders[headerId].encounterTypes[timeOfDay].landMonsInfo;
+        break;
+    case WILD_AREA_WATER:
+        info = gWildMonHeaders[headerId].encounterTypes[timeOfDay].waterMonsInfo;
+        break;
+    case WILD_AREA_ROCKS:
+        info = gWildMonHeaders[headerId].encounterTypes[timeOfDay].rockSmashMonsInfo;
+        break;
+    default:
+        break;
+    }
+
+    // A map can have grass but no surf or rock smash table. Distinguish that
+    // from "no tables at all" so the campaign loader can tell which draw options
+    // a location actually supports (§7.2).
+    if (info == NULL)
+    {
+        sBattlePending = FALSE;
+        Harness_Fail(HERR_NO_ENCOUNTER_TABLE);
+        return;
+    }
+
+    // No WILD_CHECK_REPEL or KEEN_EYE: the harness wants the table's own
+    // distribution, not one filtered by held items or party state.
+    TryGenerateWildMon(info, area, 0);
+    BattleSetup_StartWildBattle();
+}
+
 // Required for §12's bit-identical replay. The ROM seeds its RNG from the RTC at
 // boot (SeedRngWithRtc, src/main.c), and the emulator takes the RTC from the host
 // clock, so two runs of the same ROM with the same inputs diverge. Measured: two
@@ -304,6 +409,13 @@ void Task_HarnessDispatch(u8 taskId)
     case HCMD_SET_FLAG:
         Harness_SetFlag();
         break;
+    case HCMD_ROLL_ENCOUNTER:
+        // Asynchronous like trainer_battle: finished by the sBattlePending
+        // branch once the encounter battle ends.
+        Harness_RollEncounter();
+        if (sBattlePending)
+            return;
+        break;
     case HCMD_WARP:
         // Completes asynchronously; the sWarpPending branch above finishes the
         // handshake, so this must not fall through to the sequence increment.
@@ -317,7 +429,6 @@ void Task_HarnessDispatch(u8 taskId)
         if (sBattlePending)
             return;
         break;
-    case HCMD_ROLL_ENCOUNTER:
     case HCMD_ATTEMPT_CATCH:
     case HCMD_SET_LEVEL:
     case HCMD_TEACH_MOVE:

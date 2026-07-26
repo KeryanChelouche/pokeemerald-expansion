@@ -58,6 +58,11 @@ static void Harness_PublishRequest(u32 battler)
     req->battler = battler;
     req->isDouble = IsDoubleBattle();
     req->numBattlers = gBattlersCount;
+    // §4.7: the BAG action is absent unless the referee authorised a catch, and
+    // even then only in a wild battle. Legality is decided here, not by the
+    // agent declining to use it.
+    req->isWild = !(gBattleTypeFlags & BATTLE_TYPE_TRAINER);
+    req->ballAllowed = req->isWild && gHarnessCatchAllowed;
 
     // Indexed by battler id so it also serves as the §4.9 position map. Absent
     // battlers stay zeroed and simply have no aliveMask bit.
@@ -131,9 +136,24 @@ static void Harness_WaitForDecision(enum BattlerId battler)
     gHarnessMailbox.sequence++;
 
     if (d->type == HACT_SWITCH)
+    {
         BtlController_EmitTwoReturnValues(battler, B_COMM_TO_ENGINE, B_ACTION_SWITCH, 0);
+    }
+    else if (d->type == HACT_BALL)
+    {
+        // `slot` and `target` carry the ball item id, low byte first.
+        //
+        // It must go in gBallToDisplay, not gLastUsedItem: HandleAction_ThrowBall
+        // starts with `gLastUsedItem = gBallToDisplay`, so setting only
+        // gLastUsedItem is overwritten with zero and the throw silently stalls
+        // the battle instead of failing.
+        gBallToDisplay = gLastThrownBall = gLastUsedItem = d->slot | (d->target << 8);
+        BtlController_EmitTwoReturnValues(battler, B_COMM_TO_ENGINE, B_ACTION_THROW_BALL, 0);
+    }
     else
+    {
         BtlController_EmitTwoReturnValues(battler, B_COMM_TO_ENGINE, B_ACTION_USE_MOVE, 0);
+    }
     BtlController_Complete(battler);
 }
 

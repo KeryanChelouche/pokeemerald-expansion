@@ -51,6 +51,7 @@ enum HarnessError
     HERR_NOT_IMPLEMENTED,       // command is known but has no handler yet
     HERR_UNKNOWN_COMMAND,       // command is outside HCMD_COUNT
     HERR_BAD_PAYLOAD,           // payload too short or malformed for the command
+    HERR_NO_ENCOUNTER_TABLE,    // this map has no table for the requested method
 };
 
 // Field offsets are part of the wire contract. Do not reorder without
@@ -91,6 +92,11 @@ extern struct HarnessMailbox gHarnessMailbox;
 
 #define HARNESS_TEXTLOG_SIZE 4096
 
+// Balls stocked when an encounter authorises a catch. Open item §15.6 asks
+// whether ball supply should be a real constraint; until that is decided the
+// harness keeps enough that supply is never the thing that fails.
+#define HARNESS_BALL_STOCK 10
+
 struct HarnessTextLog
 {
     u32 written;                        // total bytes ever appended, monotonic
@@ -100,6 +106,7 @@ struct HarnessTextLog
 extern struct HarnessTextLog gHarnessTextLog;
 
 void Harness_LogBattleText(const u8 *text);
+extern bool8 gHarnessCatchAllowed;
 
 // ---------------------------------------------------------------------------
 // Battle decision hook (spec §4.7)
@@ -116,6 +123,29 @@ enum HarnessActionType
 {
     HACT_MOVE = 0,
     HACT_SWITCH,
+    HACT_BALL,          // wild battles only; see encounterCatchAllowed (§4.6)
+};
+
+// HCMD_ROLL_ENCOUNTER payload. Methods mirror spec §4.5.
+//
+// The roll always uses the CURRENT map's tables, so the harness must warp first
+// (invariant 2): met-location is stamped from the map the player stands on, and
+// R2's location registry depends on it.
+enum HarnessEncounterMethod
+{
+    HENC_GRASS = 0,
+    HENC_SURF,
+    HENC_ROCKSMASH,
+    HENC_ROD_OLD,
+    HENC_ROD_GOOD,
+    HENC_ROD_SUPER,
+};
+
+struct HarnessEncounterArg
+{
+    u8 method;          // enum HarnessEncounterMethod
+    u8 ballAllowed;     // sets encounterCatchAllowed: the referee decides, not the agent
+    u8 padding[2];
 };
 
 // One battler as the agent sees it. Computed stats are included per invariant 3:
@@ -177,7 +207,8 @@ struct HarnessDecisionRequest
     u8  isDouble;
     u8  numBattlers;
     u8  aliveMask;
-    u8  padding[2];
+    u8  isWild;         // ball actions are only ever legal in a wild battle
+    u8  ballAllowed;    // mirrors encounterCatchAllowed (§4.6)
     struct HarnessBattlerView battlers[MAX_BATTLERS_COUNT];
     struct HarnessMoveView moves[MAX_MON_MOVES];
     u8  legalMoveSlots[MAX_MON_MOVES];
