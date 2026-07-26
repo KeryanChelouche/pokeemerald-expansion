@@ -42,6 +42,7 @@ enum HarnessCommand
     HCMD_SET_PARTY,             // eval only
     HCMD_SET_SEED,
     HCMD_DECISION,              // reply to a decision request
+    HCMD_SET_NICKNAME,          // R5: every caught Pokemon must be named
     HCMD_COUNT,
 };
 
@@ -52,6 +53,9 @@ enum HarnessError
     HERR_UNKNOWN_COMMAND,       // command is outside HCMD_COUNT
     HERR_BAD_PAYLOAD,           // payload too short or malformed for the command
     HERR_NO_ENCOUNTER_TABLE,    // this map has no table for the requested method
+    HERR_WARP_FAILED,           // the warp was dropped and did not take after retries
+    HERR_EMPTY_NICKNAME,        // R5 rejects an empty name; the referee must supply one
+    HERR_BAD_SLOT,              // party slot out of range or empty
 };
 
 // Field offsets are part of the wire contract. Do not reorder without
@@ -107,6 +111,16 @@ extern struct HarnessTextLog gHarnessTextLog;
 
 void Harness_LogBattleText(const u8 *text);
 extern bool8 gHarnessCatchAllowed;
+
+// Set by the dispatch task once the overworld has been quiet for a while: no
+// palette fade, no running script, field controls unlocked. The harness must
+// wait for this before issuing its first command.
+//
+// Guessing a frame number instead does not work. A warp issued before the field
+// settles is dropped, and measured behaviour was not even monotonic in the
+// delay -- settling at frame 2400 worked where both 1201 and 3600 failed,
+// because the new-game sequence is in a different state at each.
+extern bool8 gHarnessFieldReady;
 
 // ---------------------------------------------------------------------------
 // Battle decision hook (spec §4.7)
@@ -185,6 +199,20 @@ struct HarnessPartyView
     u16 maxHP;
     u8  level;
     u8  isLegalSwitch;
+    u8  nickname[POKEMON_NAME_LENGTH + 1];
+    // POKEMON_NAME_LENGTH is 12, so the name is 13 bytes and this pads the
+    // struct to 22. Stated explicitly because assuming 10 produced a decoder
+    // that read the wrong field and a payload the ROM rejected.
+    u8  padding[1];
+};
+
+// HCMD_SET_NICKNAME payload. The name is in ROM character encoding, EOS
+// terminated; encoding it is the harness's job, as with battle text.
+struct HarnessNicknameArg
+{
+    u8 slot;
+    u8 padding[3];
+    u8 name[POKEMON_NAME_LENGTH + 1];
 };
 
 // Written to payloadOut when status becomes HSTAT_DECISION_PENDING.

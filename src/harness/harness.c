@@ -8,6 +8,7 @@
 #include "move.h"
 #include "overworld.h"
 #include "palette.h"
+#include "script.h"
 #include "pokemon.h"
 #include "random.h"
 #include "wild_encounter.h"
@@ -32,6 +33,24 @@ EWRAM_DATA struct HarnessMailbox gHarnessMailbox = {0};
 static EWRAM_DATA bool8 sWarpPending = FALSE;
 static EWRAM_DATA u8 sWarpTargetGroup = 0;
 static EWRAM_DATA u8 sWarpTargetNum = 0;
+static EWRAM_DATA u8 sWarpTargetX = 0;
+static EWRAM_DATA u8 sWarpTargetY = 0;
+static EWRAM_DATA u16 sWarpWaitFrames = 0;
+static EWRAM_DATA u8 sWarpRetries = 0;
+
+// A warp issued while the field is still settling is silently dropped: the
+// destination is overwritten and the player simply stays put. Measured on the
+// map quickstart leaves the player on, where the first warp of a run failed
+// roughly one time in three.
+//
+// Retrying is the fix rather than a longer wait, because nothing arrives later
+// -- the request is gone. After a few attempts the command fails instead of
+// waiting forever; a harness that hangs is far harder to diagnose than one that
+// reports what went wrong.
+#define HARNESS_WARP_RETRY_FRAMES 90
+#define HARNESS_WARP_MAX_RETRIES  4
+
+static void Harness_IssueWarp(void);
 
 // Same reasoning as the warp: a battle spans many frames and the field callback
 // does not run during it, so completion cannot be detected inline.
@@ -99,9 +118,19 @@ static void Harness_Warp(void)
 
     sWarpTargetGroup = arg->mapGroup;
     sWarpTargetNum = arg->mapNum;
+    sWarpTargetX = arg->x;
+    sWarpTargetY = arg->y;
+    sWarpWaitFrames = 0;
+    sWarpRetries = 0;
     sWarpPending = TRUE;
 
-    SetWarpDestination(arg->mapGroup, arg->mapNum, WARP_ID_NONE, arg->x, arg->y);
+    Harness_IssueWarp();
+}
+
+static void Harness_IssueWarp(void)
+{
+    SetWarpDestination(sWarpTargetGroup, sWarpTargetNum, WARP_ID_NONE,
+                       sWarpTargetX, sWarpTargetY);
     DoWarp();
     ResetInitialPlayerAvatarState();
 }
@@ -168,6 +197,14 @@ static void Harness_TrainerBattle(void)
 // only when the referee has authorised it for a valid first encounter, so this
 // is never something the agent turns on for itself.
 EWRAM_DATA bool8 gHarnessCatchAllowed = FALSE;
+
+// Consecutive quiet overworld frames required before the harness may act. The
+// field can look idle for a frame mid-sequence, so a single sample is not
+// enough.
+#define HARNESS_FIELD_SETTLE_FRAMES 60
+
+EWRAM_DATA bool8 gHarnessFieldReady = FALSE;
+static EWRAM_DATA u16 sQuietFrames = 0;
 
 // Rolls on the CURRENT map's tables (spec §4.5), which is why the harness must
 // warp first: met-location is stamped from the map the player is standing on and
@@ -303,6 +340,35 @@ static void Harness_SetFlag(void)
     Harness_Ok(0);
 }
 
+// R5: every caught Pokemon must be nicknamed, and an empty name is rejected.
+// Enforced here rather than trusted to the caller, because a blank nickname is
+// invisible in play and would only surface in the graveyard at the end of a run.
+static void Harness_SetNickname(void)
+{
+    const struct HarnessNicknameArg *arg =
+        (const struct HarnessNicknameArg *)gHarnessMailbox.payloadIn;
+
+    if (gHarnessMailbox.payloadInLen < sizeof(*arg))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+    if (arg->slot >= PARTY_SIZE
+     || GetMonData(&gParties[B_TRAINER_PLAYER][arg->slot], MON_DATA_SPECIES_OR_EGG) == SPECIES_NONE)
+    {
+        Harness_Fail(HERR_BAD_SLOT);
+        return;
+    }
+    if (arg->name[0] == EOS)
+    {
+        Harness_Fail(HERR_EMPTY_NICKNAME);
+        return;
+    }
+
+    SetMonData(&gParties[B_TRAINER_PLAYER][arg->slot], MON_DATA_NICKNAME, arg->name);
+    Harness_Ok(0);
+}
+
 static void Harness_SetParty(void)
 {
     const u8 *p = gHarnessMailbox.payloadIn;
@@ -359,6 +425,19 @@ static void Harness_SetParty(void)
 
 void Task_HarnessDispatch(u8 taskId)
 {
+    // Reaching here at all means the overworld is running. Require it to stay
+    // quiet, so the first command is not issued into the tail of the new-game
+    // sequence.
+    // Deliberately not ArePlayerFieldControlsLocked(): the new-game script locks
+    // controls and the harness bypasses the script that would unlock them, so it
+    // stays locked forever and readiness would never be reported.
+    if (gPaletteFade.active || ScriptContext_IsEnabled())
+        sQuietFrames = 0;
+    else if (sQuietFrames < HARNESS_FIELD_SETTLE_FRAMES)
+        sQuietFrames++;
+    else
+        gHarnessFieldReady = TRUE;
+
     // An in-flight warp owns the mailbox until it lands. Nothing else may run,
     // or a command would be answered against the wrong map.
     if (sWarpPending)
@@ -369,6 +448,21 @@ void Task_HarnessDispatch(u8 taskId)
             Harness_Ok(0);
             gHarnessMailbox.command = HCMD_NONE;
             gHarnessMailbox.sequence++;
+        }
+        else if (++sWarpWaitFrames >= HARNESS_WARP_RETRY_FRAMES)
+        {
+            sWarpWaitFrames = 0;
+            if (++sWarpRetries > HARNESS_WARP_MAX_RETRIES)
+            {
+                sWarpPending = FALSE;
+                Harness_Fail(HERR_WARP_FAILED);
+                gHarnessMailbox.command = HCMD_NONE;
+                gHarnessMailbox.sequence++;
+            }
+            else if (!gPaletteFade.active)
+            {
+                Harness_IssueWarp();
+            }
         }
         return;
     }
@@ -417,6 +511,9 @@ void Task_HarnessDispatch(u8 taskId)
         break;
     case HCMD_SET_FLAG:
         Harness_SetFlag();
+        break;
+    case HCMD_SET_NICKNAME:
+        Harness_SetNickname();
         break;
     case HCMD_ROLL_ENCOUNTER:
         // Asynchronous like trainer_battle: finished by the sBattlePending

@@ -1,23 +1,62 @@
-# Campaign table (spec §7). Ordered; the driver walks it top to bottom.
+# Campaign table (spec §7). Opening slice: Route 101 to the Petalburg Woods
+# Aqua Grunt.
 #
-# This is the opening slice only: Route 101 through the Petalburg Woods Aqua
-# Grunt. Ordering encodes progression -- beating the rival on Route 103 is what
-# makes Route 102 reachable -- so the sequence is the gate, and no separate
-# prerequisite mechanism is needed while the campaign is linear (R10).
+# Structure
+# ---------
+# Trainer nodes form a single linear chain, in the order they appear here. There
+# is exactly one "next fight" at any moment. That is a deliberate simplification
+# over real Emerald, where several optional trainers are reachable at once, and
+# it removes a whole class of ambiguity from both the table and the driver.
 #
-# Every constant here must resolve at load time; the loader fails on an unknown
-# one rather than skipping the row (§7.6).
+# Locations are gated only by trainers, never by other locations. You can cross
+# Route 104 without spending its encounter in order to reach Petalburg Woods, so
+# `unlocked_by` names the fight that opens the way, and a location with no
+# `unlocked_by` is available from the start.
 #
-# Assumes the player chose MUDKIP. The rival's team is picked to counter your
-# starter, so the trainer id differs per starter: TRAINER_MAY_ROUTE_103_MUDKIP
-# is "you chose Mudkip", and May carries Treecko.
+# This is what makes the between-battle decision real: at any point the agent
+# chooses between taking the next fight and spending any unlocked location, and
+# delaying an encounter is a legitimate strategy rather than something the table
+# forces.
+#
+# Every constant must resolve at load time; the loader rejects the table rather
+# than skipping a row (§7.6).
+
+# --- fight chain, in order ---------------------------------------------------
+
+- id: rival_route_103
+  kind: trainer_battle
+  # Resolved from the chosen starter: the rival's team counters yours, so the
+  # trainer id differs per starter. The driver substitutes {starter}.
+  trainer: TRAINER_MAY_ROUTE_103_{starter}
+  battle_kind: single
+  map: MAP_ROUTE103
+  mandatory: true
+  order: 1
+
+- id: trainer_calvin
+  kind: trainer_battle
+  trainer: TRAINER_CALVIN_1
+  battle_kind: single
+  map: MAP_ROUTE102
+  mandatory: true
+  order: 2
+
+- id: aqua_petalburg_woods
+  kind: trainer_battle
+  trainer: TRAINER_GRUNT_PETALBURG_WOODS
+  battle_kind: single
+  map: MAP_PETALBURG_WOODS
+  mandatory: true
+  order: 3
+
+# --- locations ---------------------------------------------------------------
 
 - id: loc_route_101
   kind: location
   mapsec: MAPSEC_ROUTE_101
   draws:
     - {map: MAP_ROUTE101, method: grass}
-  note: only land encounters exist here
+  note: reachable immediately; land table only
 
 - id: loc_route_103
   kind: location
@@ -26,46 +65,34 @@
     - {map: MAP_ROUTE103, method: grass}
     - {map: MAP_ROUTE103, method: surf, requires: [SURF]}
     - {map: MAP_ROUTE103, method: rod_old, requires: [ROD_OLD]}
-
-- id: rival_route_103
-  kind: trainer_battle
-  trainer: TRAINER_MAY_ROUTE_103_MUDKIP
-  battle_kind: single
-  map: MAP_ROUTE103
-  mandatory: true
-  note: beating this is what opens Route 102
+  note: the rival waits here, but the encounter does not require beating them
 
 - id: loc_route_102
   kind: location
   mapsec: MAPSEC_ROUTE_102
+  unlocked_by: rival_route_103
   draws:
     - {map: MAP_ROUTE102, method: grass}
     - {map: MAP_ROUTE102, method: surf, requires: [SURF]}
     - {map: MAP_ROUTE102, method: rod_old, requires: [ROD_OLD]}
 
-- id: trainer_calvin
-  kind: trainer_battle
-  trainer: TRAINER_CALVIN_1
-  battle_kind: single
-  map: MAP_ROUTE102
-  mandatory: true
-
 - id: loc_petalburg_city
   kind: location
   mapsec: MAPSEC_PETALBURG_CITY
+  unlocked_by: trainer_calvin
   draws:
     - {map: MAP_PETALBURG_CITY, method: surf, requires: [SURF]}
     - {map: MAP_PETALBURG_CITY, method: rod_old, requires: [ROD_OLD]}
   note: >
-    Water and fishing tables only. With neither Surf nor a rod at this point in
-    the sequence, no draw is available and the location yields nothing. Kept in
-    the table rather than omitted because §7.2 requires draws to be filtered by
-    capabilities held *at the point the location occurs*, and this is the case
-    that exercises it.
+    Water and fishing tables only, so with neither Surf nor a rod there is no
+    draw and the location yields nothing. Kept because it is the case that
+    exercises §7.2's rule that draws are filtered by capabilities held at the
+    point the location is reached.
 
 - id: loc_route_104
   kind: location
   mapsec: MAPSEC_ROUTE_104
+  unlocked_by: trainer_calvin
   draws:
     - {map: MAP_ROUTE104, method: grass}
     - {map: MAP_ROUTE104, method: surf, requires: [SURF]}
@@ -74,12 +101,9 @@
 - id: loc_petalburg_woods
   kind: location
   mapsec: MAPSEC_PETALBURG_WOODS
+  unlocked_by: trainer_calvin
   draws:
     - {map: MAP_PETALBURG_WOODS, method: grass}
-
-- id: aqua_petalburg_woods
-  kind: trainer_battle
-  trainer: TRAINER_GRUNT_PETALBURG_WOODS
-  battle_kind: single
-  map: MAP_PETALBURG_WOODS
-  mandatory: true
+  note: >
+    Unlocked by Calvin, not by Route 104's encounter. Crossing Route 104 without
+    spending it is allowed and is a real choice.

@@ -95,6 +95,7 @@ static void Harness_PublishRequest(u32 battler)
         req->party[i].maxHP = GetMonData(&party[i], MON_DATA_MAX_HP);
         req->party[i].level = GetMonData(&party[i], MON_DATA_LEVEL);
         req->party[i].isLegalSwitch = legal;
+        GetMonData(&party[i], MON_DATA_NICKNAME, req->party[i].nickname);
 
         if (legal)
             req->legalSwitchSlots[req->numLegalSwitches++] = i;

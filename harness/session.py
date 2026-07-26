@@ -31,7 +31,7 @@ import time
 # Mirrors include/harness.h.
 HCMD_WARP, HCMD_TRAINER_BATTLE, HCMD_ROLL_ENCOUNTER = 1, 2, 3
 HCMD_HEAL, HCMD_SET_FLAG, HCMD_SET_PARTY = 5, 12, 14
-HCMD_SET_SEED, HCMD_DECISION = 15, 16
+HCMD_SET_SEED, HCMD_DECISION, HCMD_SET_NICKNAME = 15, 16, 17
 HSTAT_IDLE, HSTAT_DECISION_PENDING, HSTAT_ERROR = 0, 2, 3
 
 SYSTEM_FLAGS = 0x860
@@ -47,9 +47,10 @@ local OUT = B + {off_out}
 local TLOG = {tlog}
 local TSIZE = {tsize}
 local DIR = "{dir}"
+local READY_FLAG = {ready}
 
 local n, booted = 0, false
-local cmdN, busy, answered = 1, false, 0
+local cmdN, busy, answered, inBattleCmd = 1, false, 0, false
 local reqN, awaiting, lastW = 0, false, 0
 
 local function writeAtomic(name, body)
@@ -86,12 +87,25 @@ callbacks:add("frame", function()
     if (n % 30) < 5 then emu:setKeys(4) else emu:setKeys(0) end
     return
   end
-  if n == 1201 then emu:setKeys(0); booted = true; writeAtomic("READY", "1") end
+  -- Keep pressing A past the title screen: the new-game sequence has its own
+  -- prompts. Readiness is reported by the ROM, not guessed from a frame number.
+  if n > 1200 and not booted then
+    if (n % 16) < 5 then emu:setKeys(1) else emu:setKeys(0) end
+    if emu:read8(READY_FLAG) ~= 0 then
+      emu:setKeys(0); booted = true; writeAtomic("READY", string.format("%d", n))
+    end
+    return
+  end
   if not booted then return end
 
-  -- Advances menus and messages only. Every actual choice comes from a
-  -- decision reply (spec §4.7).
-  if (n % 16) < 5 then emu:setKeys(1) else emu:setKeys(0) end
+  -- Press A only while a battle is resolving, to advance its messages. On the
+  -- overworld A interacts with whatever the player is facing, and pressing it
+  -- during a warp was interfering with the warp itself.
+  if inBattleCmd or emu:read16(B + 2) == {pending} then
+    if (n % 16) < 5 then emu:setKeys(1) else emu:setKeys(0) end
+  else
+    emu:setKeys(0)
+  end
 
   if emu:read16(B + 2) == {pending} and not awaiting then
     reqN = reqN + 1
@@ -127,6 +141,7 @@ callbacks:add("frame", function()
       writeAtomic("done_" .. cmdN,
                   string.format("%d %s", emu:read16(B + 2), hexFrom(OUT, emu:read16(B + 10))))
       busy = false
+      inBattleCmd = false
       cmdN = cmdN + 1
     end
     return
@@ -142,6 +157,8 @@ callbacks:add("frame", function()
       emu:write8(B + 12 + i, tonumber(hex:sub(i * 2 + 1, i * 2 + 2), 16))
     end
     answered = 0
+    -- Only these produce battle messages that need advancing.
+    inBattleCmd = (id == {c_battle} or id == {c_enc})
     emu:write16(B + 8, len); emu:write16(B + 0, id); emu:write16(B + 2, 1)
     busy = true
   end
@@ -164,7 +181,10 @@ class Session:
             if name not in syms:
                 raise SessionError(f"{name} absent from symbols — ROM built without "
                                    f"the harness?")
+        if "gHarnessFieldReady" not in syms:
+            raise SessionError("gHarnessFieldReady absent from symbols — rebuild the ROM")
         self.base, self.tlog = syms["gHarnessMailbox"], syms["gHarnessTextLog"]
+        self.ready = syms["gHarnessFieldReady"]
         self._td = tempfile.TemporaryDirectory()
         self.dir = pathlib.Path(self._td.name)
         self.n = 0          # commands issued
@@ -176,7 +196,8 @@ class Session:
         (self.dir / "play.lua").write_text(LUA.format(
             base=self.base, off_out=OFF_PAYLOAD_OUT, tlog=self.tlog,
             tsize=TEXTLOG_SIZE, dir=self.dir, c_dec=HCMD_DECISION,
-            pending=HSTAT_DECISION_PENDING))
+            pending=HSTAT_DECISION_PENDING, ready=self.ready,
+            c_battle=HCMD_TRAINER_BATTLE, c_enc=HCMD_ROLL_ENCOUNTER))
         env = dict(os.environ)
         env["LD_LIBRARY_PATH"] = (f"{self.mgba.resolve().parent}:"
                                   f"{env.get('LD_LIBRARY_PATH', '')}")
