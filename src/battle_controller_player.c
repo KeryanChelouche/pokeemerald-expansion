@@ -12,6 +12,7 @@
 #include "battle_gimmick.h"
 #include "bg.h"
 #include "data.h"
+#include "harness.h"
 #include "item.h"
 #include "item_menu.h"
 #include "link.h"
@@ -2019,6 +2020,12 @@ static void PlayerHandleChooseAction(enum BattlerId battler)
 {
     s32 i;
 
+#if HARNESS_ENABLED
+    // The agent decides; no menu is drawn and no input is read (spec §4.7).
+    if (Harness_BattleChooseAction(battler))
+        return;
+#endif
+
     gBattlerControllerFuncs[battler] = HandleChooseActionAfterDma3;
     BattleTv_ClearExplosionFaintCause();
     BattlePutTextOnWindow(gText_BattleMenu, B_WIN_ACTION_MENU);
@@ -2113,6 +2120,13 @@ static void PlayerChooseMoveInBattlePalace(enum BattlerId battler)
 
 void PlayerHandleChooseMove(enum BattlerId battler)
 {
+#if HARNESS_ENABLED
+    // Answered from the action-stage decision, so the agent is asked once per
+    // turn rather than twice (spec §4.7).
+    if (Harness_BattleChooseMove(battler))
+        return;
+#endif
+
     if (gBattleTypeFlags & BATTLE_TYPE_PALACE)
     {
         gBattleStruct->arenaMindPoints[battler] = 8;
@@ -2174,6 +2188,12 @@ static void PlayerHandleChoosePokemon(enum BattlerId battler)
         gBattlePartyCurrentOrder[i] = gBattleResources->bufferA[battler][4 + i];
 
     memcpy(gBattleStruct->battlerPartyOrders[battler], gBattlePartyCurrentOrder, sizeof(gBattlePartyCurrentOrder));
+
+#if HARNESS_ENABLED
+    // Without this a switch action opens the party menu and blocks on input.
+    if (Harness_BattleChoosePokemon(battler))
+        return;
+#endif
 
     if (gBattleTypeFlags & BATTLE_TYPE_ARENA && gBattleResources->bufferA[battler][1] != PARTY_ACTION_CANT_SWITCH
         && gBattleResources->bufferA[battler][1] != PARTY_ACTION_CHOOSE_FAINTED_MON

@@ -82,12 +82,48 @@ This is **better** than what §3.4 specified. The frontend is headless by constr
 by suppression — no X server, no `xvfb`, no video pipeline to disable. Drop `xvfb` from the
 live run path; `render/` still needs a real frontend for §12's 1× capture.
 
-**Cost: it is unreleased code.** Pinned to mGBA master `c034660`. That commit hash is part
-of the reproducibility tuple and MUST be recorded in the ledger header alongside `rom_hash`
-— §12's replay guarantee is meaningless if the emulator drifts.
+**Cost: it is unreleased code.** Pinned to mGBA master
+`c034660f007c543233f1cadeb0ca13c71afd8f41`. That hash is part of the reproducibility tuple
+and MUST be recorded in the ledger header alongside `rom_hash` — §12's replay guarantee is
+meaningless if the emulator drifts.
+
+Record the **full** SHA, not the abbreviated form. `git fetch --depth 1 origin <sha>` will
+not accept an abbreviated hash, so a short pin cannot be restored directly and has to be
+recovered by fetching history and searching for it.
+
+Build it outside any ephemeral scratch directory (this project uses `/root/mgba-src`). A
+pruned scratch directory silently removes the emulator, and every test then reports "no
+output" — which looks exactly like a ROM hang rather than a missing binary.
 
 Verified working end to end: script loads, `callbacks:add("frame", ...)` fires, and
 `emu:read8/read32` return correct data from the running ROM.
+
+## §4.7 / §14.1 Input injection — requirement relaxed
+
+§14.1 requires the battle path to run with "no dialogue, no overworld interaction, no input
+injection". **The intent is narrower than the wording:** what must not happen is the *agent*
+making micro-navigation decisions. The agent chooses "use Tackle", never "press A, press
+right, press A". How the harness realises that choice internally is unconstrained.
+
+Synthetic keypresses are therefore permitted, and are used for two things:
+
+- advancing battle messages and menus;
+- confirming a choice the agent has already made.
+
+This is not a workaround — it is materially **more correct** than the alternative. The first
+implementation bypassed the menus and emitted `B_ACTION_EXEC_SCRIPT` directly, which meant
+re-deriving move targeting outside the engine. It got it wrong: moves resolved against the
+user instead of the opponent, and the ROM reported a perfectly well-formed battle while the
+opponent took no damage for five consecutive turns. Target selection depends on move target
+type, gimmick state, doubles layout and ally liveness — all of which
+`HandleInputChooseMove` already handles.
+
+The hook now preselects `gMoveSelectionCursor` to the agent's chosen slot and lets the
+game's own selection code run. Shorter, and correct by construction.
+
+**The invariant that actually matters** is the one §4.7 states: the agent MUST receive an
+enumerated list of legal actions and choose from it. That is unchanged, and it is what the
+decision request enforces. Keypresses are an implementation detail beneath it.
 
 ## §2 Components
 

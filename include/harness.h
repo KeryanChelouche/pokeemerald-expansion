@@ -72,6 +72,87 @@ struct HarnessMailbox
 
 extern struct HarnessMailbox gHarnessMailbox;
 
+// ---------------------------------------------------------------------------
+// Battle decision hook (spec §4.7)
+//
+// The engine asks the player controller twice per turn: once for an action
+// (FIGHT / SWITCH / ...), then again for the specific move. §4.7 requires the
+// agent to receive one enumerated list and choose from it, so the harness
+// publishes a single request at the action stage covering moves *and* switches,
+// caches the reply, and answers the move stage from that cache without a second
+// round trip.
+// ---------------------------------------------------------------------------
+
+enum HarnessActionType
+{
+    HACT_MOVE = 0,
+    HACT_SWITCH,
+};
+
+// One battler as the agent sees it. Computed stats are included per invariant 3:
+// they are what the agent reasons from, and must never be re-derived from
+// IVs/EVs/nature outside the ROM.
+struct HarnessBattlerView
+{
+    u16 species;
+    u16 hp;
+    u16 maxHP;
+    u16 attack;
+    u16 defense;
+    u16 speed;
+    u16 spAttack;
+    u16 spDefense;
+    u32 status1;
+    u8  level;
+    u8  types[3];
+    s8  statStages[NUM_BATTLE_STATS];
+    u8  ability;
+    u8  padding;
+};
+
+struct HarnessMoveView
+{
+    u16 move;
+    u8  pp;
+    u8  maxPP;
+};
+
+// Written to payloadOut when status becomes HSTAT_DECISION_PENDING.
+//
+// Only actions listed here are legal (§4.7): a move with no PP is absent, and a
+// fainted or already-active party member is not a switch target. The agent must
+// choose from this list; illegal actions are impossible rather than penalised.
+struct HarnessDecisionRequest
+{
+    u8  battler;
+    u8  numLegalMoves;
+    u8  numLegalSwitches;
+    u8  isDouble;
+    struct HarnessBattlerView player;
+    struct HarnessBattlerView opponent;
+    struct HarnessMoveView moves[MAX_MON_MOVES];
+    u8  legalMoveSlots[MAX_MON_MOVES];
+    u8  legalSwitchSlots[PARTY_SIZE];
+};
+
+// Pass as `target` to let the ROM pick the target the way the game does for a
+// move with no selectable target — which is every move in singles. The agent
+// only supplies a target when the choice is real.
+#define HTARGET_DEFAULT 0xFF
+
+// HCMD_DECISION payload (harness -> ROM).
+struct HarnessDecision
+{
+    u8 type;        // enum HarnessActionType
+    u8 slot;        // move slot for HACT_MOVE, party slot for HACT_SWITCH
+    u8 target;      // battler id, or HTARGET_DEFAULT
+    u8 padding;
+};
+
+bool8 Harness_BattleChooseAction(u32 battler);
+bool8 Harness_BattleChooseMove(u32 battler);
+bool8 Harness_BattleChoosePokemon(u32 battler);
+
 // HCMD_WARP payload.
 struct HarnessWarpArg
 {
