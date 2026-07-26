@@ -30,6 +30,39 @@ may not be, and vice versa.
 | EXP gain disabled | source patch, `Cmd_getexp` | Levels are set explicitly by the harness (§4.8). Makes over-cap Pokémon impossible. |
 | Badge stat boosts | none needed | Already off: `B_BADGE_BOOST` defaults to `GEN_LATEST`, and `src/battle_util.c:8917` applies boosts only when `<= GEN_3`. The spec listed this as a deliberate deviation for calc parity; it is now simply the stock default, requiring no action. |
 | Battle style forced to Set | source patch, `battle_main.c:2988` | Rule surface (§4.7): switch actions must be absent after an opponent faint. |
+| Level-up learnsets pinned to Gen 3 | `P_LVL_UP_LEARNSETS = GEN_3` | See below. Campaign authoring depends on it. |
+
+## Learnsets are Gen 3 while mechanics are modern
+
+`P_LVL_UP_LEARNSETS = GEN_3` selects `level_up_learnsets/gen_3.h`, which upstream labels
+*Ruby/Sapphire/Emerald*. This is a deliberate split from the rest of the configuration and
+exists for a concrete reason.
+
+**Only 436 of 1825 roster entries in `trainers.party` list moves.** The other 1389 (76%) are
+filled at runtime by `GiveMonInitialMoveset()` (`src/battle_main.c:1851`) from the level-up
+learnset. Under `GEN_LATEST` that produced movesets no vanilla walkthrough describes — a
+level 5 Treecko opening with Leafage, a Gen 7 move learned at level 3 in Gen 9 data. Since
+§7.6 authors the campaign from a walkthrough, opponents have to match what the walkthrough
+says they are.
+
+Verified by observation rather than inference:
+
+```
+GEN_LATEST : The opposing Treecko used Leafage!
+GEN_3      : The opposing Treecko used Pound!
+```
+
+**The resulting hybrid, stated plainly:** vanilla movesets, modern everything else. Move
+*data* is untouched — `B_UPDATED_MOVE_DATA` is still `GEN_LATEST`, so a Gen 3 learnset move
+carries Gen 9 power, accuracy and type. Do not describe the build as "vanilla Emerald".
+
+**Scope is broader than trainers.** Every implicit moveset is affected: wild encounters get
+Gen 3 movesets, and `HCMD_SET_LEVEL` will offer Gen 3 level-up moves to the player's own
+team. For a nuzlocke that is the intended behaviour, but it is wider than the trainer
+rosters that motivated it.
+
+`make check` stays at 4887 passed, so no upstream test asserts on learnsets and the test
+build needs no override — unlike `B_EV_CAP_TYPE`, which did (see `config.md`).
 
 Badge boosts are worth restating because the spec's reasoning inverted under this change.
 Had §3.2 been implemented as written — flipping `GEN_LATEST` to `GEN_3` — it would have
