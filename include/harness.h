@@ -117,6 +117,17 @@ struct HarnessMoveView
     u8  maxPP;
 };
 
+// Per party slot (spec §4.9). Enough for the agent to reason about a switch
+// without a second round trip. Full computed stats per slot are still to come.
+struct HarnessPartyView
+{
+    u16 species;
+    u16 hp;
+    u16 maxHP;
+    u8  level;
+    u8  isLegalSwitch;
+};
+
 // Written to payloadOut when status becomes HSTAT_DECISION_PENDING.
 //
 // Only actions listed here are legal (§4.7): a move with no PP is absent, and a
@@ -142,6 +153,11 @@ struct HarnessDecisionRequest
     struct HarnessMoveView moves[MAX_MON_MOVES];
     u8  legalMoveSlots[MAX_MON_MOVES];
     u8  legalSwitchSlots[PARTY_SIZE];
+    // Explicit rather than left to the compiler: without it the party array
+    // picks up implicit padding here, and a decoder that assumes none reads two
+    // bytes early and returns plausible-looking nonsense.
+    u8  padding2[2];
+    struct HarnessPartyView party[PARTY_SIZE];
 };
 
 // Pass as `target` to let the ROM pick the target the way the game does for a

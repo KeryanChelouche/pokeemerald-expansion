@@ -125,19 +125,58 @@ game's own selection code run. Shorter, and correct by construction.
 enumerated list of legal actions and choose from it. That is unchanged, and it is what the
 decision request enforces. Keypresses are an implementation detail beneath it.
 
-### Open risk: the keypress driver is a determinism hazard
+### The keypress driver is NOT the determinism problem
 
-The current driver pulses A on a fixed frame cadence to advance messages. That is fine for
-smoke tests but is **not** safe for §12's bit-identical replay: the same decision log replayed
-against a different pulse phase can land keypresses on different frames.
+An earlier version of this section blamed the A-pulse driver for run-to-run divergence. That
+was wrong. The pulse is keyed off the emulator's frame counter (`n % 16`), so it fires on
+identical frames every run; there is no jitter for RNG to amplify.
 
-Evidence this is real, not theoretical: one doubles run took 12 decisions where an otherwise
-identical run took 4, and the difference did not reproduce. The decisions were the same; only
-the timing differed.
+The real cause is below. Retained here because the wrong diagnosis is the tempting one.
 
-Before M2's replay verification, message advancement MUST become deterministic — either
-driven by ROM state (advance when the engine is actually waiting) or suppressed at source,
-rather than by a frame-cadence pulse. Do not build replay verification on top of the pulse.
+## §12 Determinism — the RNG is seeded from the real-time clock
+
+**Runs of the same ROM with the same inputs diverge.** Measured: two byte-identical runs of
+one doubles battle agreed exactly through turn 1 — same decision frames, same state — then
+diverged, finishing in 4 and 10 decisions.
+
+The cause is `SeedRngWithRtc()` (`src/main.c:242`), called at boot from `main.c:109`:
+
+```c
+seconds = ((HOURS_PER_DAY * RtcGetDayCount(&rtc) + BCD8(rtc.hour))
+        * MINUTES_PER_HOUR + BCD8(rtc.minute)) * SECONDS_PER_MINUTE + BCD8(rtc.second);
+SeedRng(seconds);
+```
+
+The emulator takes the RTC from the host clock, so the seed differs on every run. Note the
+upstream comment: *"FRLG commented this out to remove RTC, however Emerald didn't undo
+this!"* — it is live because `BUGFIX` is defined in `config/general.h`.
+
+**Consequences:**
+
+- `HCMD_SET_SEED` (§5.1) is not optional convenience — it is what makes §12 possible at all.
+  The harness MUST issue it after boot and before anything consumes randomness, and MUST
+  record the seed in the ledger. Implemented via `SeedRng`.
+- The RTC remains a latent input beyond the RNG: `GetTimeOfDay()` reads it. Encounter tables
+  are insulated only because `OW_TIME_OF_DAY_ENCOUNTERS` is `FALSE` (see `config.md`, where
+  that row is pinned). If that ever flips, wall-clock time re-enters the replay tuple.
+- The replay tuple in §12 is therefore `(rom_hash, mgba_commit, seed, decision_log)`. The
+  emulator commit is listed for the reason given under §3.4; the seed for this one.
+
+**Verified.** With `set_seed` issued after boot and before the party is built, two runs of
+the same doubles battle are frame-exact:
+
+```
+run 1: f1693 f1731 f2515 f2548 f3073 f3108 f3659  outcome=1 dec=6
+run 2: f1693 f1731 f2515 f2548 f3073 f3108 f3659  outcome=1 dec=6
+```
+
+Same decision frames, same state at each, same outcome. Without `set_seed` the same battle
+diverged into 4 and 10 decisions. Frame-exact reproducibility is the precondition for §12's
+bit-identical replay, so M2 can now be built on it.
+
+A caution on testing this: a comparison run is only meaningful if the ROM is unchanged for
+its whole duration. An earlier attempt overlapped a rebuild, so the two halves ran different
+ROMs and its "identical" verdict was worthless. Rebuild first, then compare.
 
 ## §2 Components
 

@@ -6,6 +6,7 @@
 #include "move.h"
 #include "overworld.h"
 #include "pokemon.h"
+#include "random.h"
 #include "script_pokemon_util.h"
 #include "task.h"
 #include "constants/battle.h"
@@ -134,6 +135,26 @@ static void Harness_TrainerBattle(void)
     BattleSetup_StartTrainerBattle_Debug();
 }
 
+// Required for §12's bit-identical replay. The ROM seeds its RNG from the RTC at
+// boot (SeedRngWithRtc, src/main.c), and the emulator takes the RTC from the host
+// clock, so two runs of the same ROM with the same inputs diverge. Measured: two
+// byte-identical runs of one doubles battle agreed exactly through turn 1 and
+// then diverged, finishing in 4 and 10 decisions.
+//
+// The harness must therefore call this after boot and before anything that
+// consumes randomness, and record the seed in the ledger.
+static void Harness_SetSeed(void)
+{
+    if (gHarnessMailbox.payloadInLen < sizeof(u32))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+
+    SeedRng(*(const u32 *)gHarnessMailbox.payloadIn);
+    Harness_Ok(0);
+}
+
 static void Harness_SetParty(void)
 {
     const u8 *p = gHarnessMailbox.payloadIn;
@@ -235,6 +256,9 @@ void Task_HarnessDispatch(u8 taskId)
     case HCMD_SET_PARTY:
         Harness_SetParty();
         break;
+    case HCMD_SET_SEED:
+        Harness_SetSeed();
+        break;
     case HCMD_WARP:
         // Completes asynchronously; the sWarpPending branch above finishes the
         // handshake, so this must not fall through to the sequence increment.
@@ -258,7 +282,6 @@ void Task_HarnessDispatch(u8 taskId)
     case HCMD_RELEASE:
     case HCMD_SET_FLAG:
     case HCMD_DUMP_STATE:
-    case HCMD_SET_SEED:
     case HCMD_DECISION:
         Harness_Fail(HERR_NOT_IMPLEMENTED);
         break;
@@ -271,12 +294,30 @@ void Task_HarnessDispatch(u8 taskId)
     gHarnessMailbox.sequence++;
 }
 
+// Save-block options the harness depends on (spec §3.1). These are not config
+// constants, so they must be written at runtime; a fresh save or the options menu
+// would otherwise leave them at defaults.
+//
+// Instant text and disabled battle animations are not cosmetic here. With
+// animations on, a battle spends most of its frames in sequences that wait to be
+// dismissed, which both slows every attempt and makes progress depend on input
+// timing. Turning them off removes the waiting rather than papering over it.
+static void Harness_ApplyOptions(void)
+{
+    gSaveBlock2Ptr->optionsTextSpeed = OPTIONS_TEXT_SPEED_INSTANT;
+    gSaveBlock2Ptr->optionsBattleSceneOff = TRUE;
+    gSaveBlock2Ptr->optionsBattleStyle = OPTIONS_BATTLE_STYLE_SET;
+}
+
 // Idempotent: called every overworld frame so the task exists however the map
 // was entered, including after a battle or a savestate load.
 void Harness_EnsureDispatchTask(void)
 {
     if (!FuncIsActiveTask(Task_HarnessDispatch))
+    {
+        Harness_ApplyOptions();
         CreateTask(Task_HarnessDispatch, HARNESS_DISPATCH_TASK_PRIORITY);
+    }
 }
 
 #endif // HARNESS_ENABLED

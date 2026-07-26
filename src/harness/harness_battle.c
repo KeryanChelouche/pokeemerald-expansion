@@ -80,13 +80,19 @@ static void Harness_PublishRequest(u32 battler)
 
     for (i = 0; i < PARTY_SIZE; i++)
     {
-        if (i == gBattlerPartyIndexes[battler])
-            continue;
-        if (GetMonData(&party[i], MON_DATA_SPECIES_OR_EGG) == SPECIES_NONE)
-            continue;
-        if (GetMonData(&party[i], MON_DATA_HP) == 0)
-            continue;
-        req->legalSwitchSlots[req->numLegalSwitches++] = i;
+        u32 species = GetMonData(&party[i], MON_DATA_SPECIES_OR_EGG);
+        bool32 legal = species != SPECIES_NONE
+                    && GetMonData(&party[i], MON_DATA_HP) != 0
+                    && i != gBattlerPartyIndexes[battler];
+
+        req->party[i].species = species;
+        req->party[i].hp = GetMonData(&party[i], MON_DATA_HP);
+        req->party[i].maxHP = GetMonData(&party[i], MON_DATA_MAX_HP);
+        req->party[i].level = GetMonData(&party[i], MON_DATA_LEVEL);
+        req->party[i].isLegalSwitch = legal;
+
+        if (legal)
+            req->legalSwitchSlots[req->numLegalSwitches++] = i;
     }
 
     gHarnessMailbox.payloadOutLen = sizeof(*req);
