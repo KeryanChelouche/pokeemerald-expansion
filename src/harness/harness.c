@@ -7,6 +7,7 @@
 #include "field_screen_effect.h"
 #include "move.h"
 #include "overworld.h"
+#include "palette.h"
 #include "pokemon.h"
 #include "random.h"
 #include "wild_encounter.h"
@@ -389,6 +390,14 @@ void Task_HarnessDispatch(u8 taskId)
     }
 
     if (gHarnessMailbox.status != HSTAT_CMD_PENDING)
+        return;
+
+    // Accept new commands only when the field has settled. A warp issued during
+    // the fade left over from the previous command is dropped, and the harness
+    // then waits forever for a completion that will never come. This was
+    // intermittent precisely because it depended on which frame the command
+    // happened to land on.
+    if (gPaletteFade.active)
         return;
 
     // Every command must reach exactly one of Harness_Ok or Harness_Fail. A

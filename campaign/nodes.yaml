@@ -1,0 +1,85 @@
+# Campaign table (spec §7). Ordered; the driver walks it top to bottom.
+#
+# This is the opening slice only: Route 101 through the Petalburg Woods Aqua
+# Grunt. Ordering encodes progression -- beating the rival on Route 103 is what
+# makes Route 102 reachable -- so the sequence is the gate, and no separate
+# prerequisite mechanism is needed while the campaign is linear (R10).
+#
+# Every constant here must resolve at load time; the loader fails on an unknown
+# one rather than skipping the row (§7.6).
+#
+# Assumes the player chose MUDKIP. The rival's team is picked to counter your
+# starter, so the trainer id differs per starter: TRAINER_MAY_ROUTE_103_MUDKIP
+# is "you chose Mudkip", and May carries Treecko.
+
+- id: loc_route_101
+  kind: location
+  mapsec: MAPSEC_ROUTE_101
+  draws:
+    - {map: MAP_ROUTE101, method: grass}
+  note: only land encounters exist here
+
+- id: loc_route_103
+  kind: location
+  mapsec: MAPSEC_ROUTE_103
+  draws:
+    - {map: MAP_ROUTE103, method: grass}
+    - {map: MAP_ROUTE103, method: surf, requires: [SURF]}
+    - {map: MAP_ROUTE103, method: rod_old, requires: [ROD_OLD]}
+
+- id: rival_route_103
+  kind: trainer_battle
+  trainer: TRAINER_MAY_ROUTE_103_MUDKIP
+  battle_kind: single
+  map: MAP_ROUTE103
+  mandatory: true
+  note: beating this is what opens Route 102
+
+- id: loc_route_102
+  kind: location
+  mapsec: MAPSEC_ROUTE_102
+  draws:
+    - {map: MAP_ROUTE102, method: grass}
+    - {map: MAP_ROUTE102, method: surf, requires: [SURF]}
+    - {map: MAP_ROUTE102, method: rod_old, requires: [ROD_OLD]}
+
+- id: trainer_calvin
+  kind: trainer_battle
+  trainer: TRAINER_CALVIN_1
+  battle_kind: single
+  map: MAP_ROUTE102
+  mandatory: true
+
+- id: loc_petalburg_city
+  kind: location
+  mapsec: MAPSEC_PETALBURG_CITY
+  draws:
+    - {map: MAP_PETALBURG_CITY, method: surf, requires: [SURF]}
+    - {map: MAP_PETALBURG_CITY, method: rod_old, requires: [ROD_OLD]}
+  note: >
+    Water and fishing tables only. With neither Surf nor a rod at this point in
+    the sequence, no draw is available and the location yields nothing. Kept in
+    the table rather than omitted because §7.2 requires draws to be filtered by
+    capabilities held *at the point the location occurs*, and this is the case
+    that exercises it.
+
+- id: loc_route_104
+  kind: location
+  mapsec: MAPSEC_ROUTE_104
+  draws:
+    - {map: MAP_ROUTE104, method: grass}
+    - {map: MAP_ROUTE104, method: surf, requires: [SURF]}
+    - {map: MAP_ROUTE104, method: rod_old, requires: [ROD_OLD]}
+
+- id: loc_petalburg_woods
+  kind: location
+  mapsec: MAPSEC_PETALBURG_WOODS
+  draws:
+    - {map: MAP_PETALBURG_WOODS, method: grass}
+
+- id: aqua_petalburg_woods
+  kind: trainer_battle
+  trainer: TRAINER_GRUNT_PETALBURG_WOODS
+  battle_kind: single
+  map: MAP_PETALBURG_WOODS
+  mandatory: true
