@@ -22,6 +22,7 @@ import json
 import pathlib
 import shutil
 import subprocess
+import time
 import re
 import struct
 import sys
@@ -821,12 +822,24 @@ class Runner:
             print(" no frames captured", file=sys.stderr)
             return
         fps = max(1, round(60 / self.args.every))
+        # Held frames -- fades, transitions, a message box waiting to be
+        # dismissed -- are most of a run's wall time and none of its content.
+        # mpdecimate drops near-identical frames and setpts re-times what is
+        # left, which roughly halves a recording without touching the run.
+        vf = "scale=480:320:flags=neighbor"
+        if not self.args.full_video:
+            vf += ",mpdecimate=hi=768:lo=320:frac=0.33,setpts=N/FRAME_RATE/TB"
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(fps),
-                        "-i", str(shots / "%06d.png"),
-                        "-vf", "scale=480:320:flags=neighbor",
+                        "-i", str(shots / "%06d.png"), "-vf", vf,
                         "-pix_fmt", "yuv420p", str(self.args.video)], check=True)
+        kept = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=nb_frames", "-of", "csv=p=0",
+             str(self.args.video)], capture_output=True, text=True).stdout.strip()
         print(f" Video written to {self.args.video} "
-              f"({len(frames)} frames at {fps}fps)")
+              f"({kept or '?'} frames kept of {len(frames)} at {fps}fps)")
+        # ~11 MB per recorded minute otherwise, and useless once encoded.
+        shutil.rmtree(shots, ignore_errors=True)
 
 
 def main():
@@ -844,12 +857,25 @@ def main():
                     help="attempt number, recorded in the ledger header")
     ap.add_argument("--video", type=pathlib.Path,
                     help="record the run to video as it is played")
+    ap.add_argument("--full-video", action="store_true",
+                    help="keep every captured frame; by default held frames "
+                         "(fades, waiting message boxes) are dropped")
     ap.add_argument("--every", type=int, default=2,
                     help="capture one frame in N when recording (default 2, ~30fps)")
-    ap.add_argument("--ledger", type=pathlib.Path,
-                    default=pathlib.Path("runs/attempt.jsonl"),
-                    help="append-only run ledger (§11)")
-    return Runner(ap.parse_args()).main()
+    ap.add_argument("--ledger", type=pathlib.Path, default=None,
+                    help="append-only run ledger (§11); defaults to a new "
+                         "timestamped file per attempt")
+    args = ap.parse_args()
+    if args.ledger is None:
+        # One file per attempt (§11). A fixed default silently merged separate
+        # runs into one file, and the summariser then read two attempts as one.
+        args.ledger = pathlib.Path(
+            f"runs/{time.strftime('%Y%m%d-%H%M%S')}.jsonl")
+    elif args.ledger.exists() and '"run_start"' in args.ledger.read_text():
+        raise SystemExit(f"{args.ledger} already holds a run. Ledgers are "
+                         f"append-only and one file per attempt; pass a "
+                         f"different --ledger.")
+    return Runner(args).main()
 
 
 if __name__ == "__main__":

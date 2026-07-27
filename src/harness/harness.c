@@ -118,6 +118,19 @@ static void Harness_Warp(void)
         return;
     }
 
+    // Already there: complete without warping. Calling DoWarp to the current map
+    // starts a transition, but Harness_WarpArrived is true on the very first
+    // tick -- the destination already matches -- so the command reports success
+    // while the screen is still fading, and whatever is issued next lands
+    // mid-transition and hangs. Reproduced by rolling the same location twice in
+    // a row, which is exactly what R3 invites after a dupe forces a run.
+    if (gSaveBlock1Ptr->location.mapGroup == arg->mapGroup
+     && gSaveBlock1Ptr->location.mapNum == arg->mapNum)
+    {
+        Harness_Ok(0);
+        return;
+    }
+
     sWarpTargetGroup = arg->mapGroup;
     sWarpTargetNum = arg->mapNum;
     sWarpTargetX = arg->x;
@@ -858,10 +871,13 @@ void Task_HarnessDispatch(u8 taskId)
             return;
         break;
     case HCMD_WARP:
-        // Completes asynchronously; the sWarpPending branch above finishes the
-        // handshake, so this must not fall through to the sequence increment.
+        // Normally completes asynchronously, finished by the sWarpPending branch
+        // above. When the player is already on the target map it completes
+        // synchronously instead, and must fall through to be acknowledged.
         Harness_Warp();
-        return;
+        if (sWarpPending)
+            return;
+        break;
     case HCMD_TRAINER_BATTLE:
         // Asynchronous for the same reason; finished by the sBattlePending
         // branch. A malformed payload fails synchronously, though, so only

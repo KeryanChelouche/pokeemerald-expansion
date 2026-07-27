@@ -7,6 +7,7 @@
 #include "battle_ai_record.h"
 #include "battle_ai_util.h"
 #include "battle_scripts.h"
+#include "harness.h"
 #include "battle_switch_in.h"
 #include "battle_environment.h"
 #include "battle_z_move.h"
@@ -10451,6 +10452,15 @@ static void Cmd_trygivecaughtmonnick(void)
     switch (gBattleCommunication[MULTIUSE_STATE])
     {
     case 0:
+#if HARNESS_ENABLED
+        // Decline the naming screen. R5 still requires a nickname, but the
+        // harness sets it with HCMD_SET_NICKNAME once the battle is over, and
+        // the agent chooses the name -- it is not typed on a keyboard. Left to
+        // the prompt, the harness's message-advancing keypresses spell out
+        // "Aaaaaaaaaa" on the naming screen before it gets overwritten.
+        gBattleCommunication[MULTIUSE_STATE] = 4;
+        return;
+#endif
         HandleBattleWindow(YESNOBOX_X_Y, 0);
         BattlePutTextOnWindow(gText_BattleYesNoChoice, B_WIN_YESNO);
         gBattleCommunication[MULTIUSE_STATE]++;

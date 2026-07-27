@@ -20,8 +20,10 @@ Every file is written to a .tmp and renamed, because a reader that catches a
 half-written record sees a plausible wrong value rather than an error.
 """
 
+import ctypes
 import json
 import os
+import signal
 import pathlib
 import struct
 import subprocess
@@ -40,10 +42,10 @@ SYSTEM_FLAGS = 0x860
 BADGE_FLAGS = [SYSTEM_FLAGS + 0x7 + i for i in range(8)]
 
 TEXTLOG_SIZE = 4096
-# Busy-wait iterations before the emulator gives up waiting for the driver.
-# Large enough for a human to think, small enough that a dead driver does not
-# leave a core spinning forever.
-SPIN_LIMIT = 200_000_000
+# Busy-wait iterations before the emulator stops waiting for the driver. Large
+# enough for a person to think about a decision, small enough that a dead driver
+# is not waited on forever. PR_SET_PDEATHSIG above is the real safety net.
+SPIN_LIMIT = 20_000_000
 PAYLOAD_SIZE = 2048
 OFF_PAYLOAD_OUT = 12 + PAYLOAD_SIZE
 
@@ -211,6 +213,20 @@ end)
 """
 
 
+def _die_with_parent():
+    """Ask the kernel to kill this child when its parent dies.
+
+    mgba-headless runs flat out, so an orphaned emulator pegs a core
+    indefinitely -- one was found still spinning 22 hours after the session that
+    started it had gone. Session.close() handles the ordinary path; this covers
+    the driver being killed outright, where no cleanup code runs at all.
+    """
+    try:
+        ctypes.CDLL("libc.so.6").prctl(1, signal.SIGTERM)   # PR_SET_PDEATHSIG
+    except OSError:
+        pass                                                # best effort
+
+
 class SessionError(RuntimeError):
     pass
 
@@ -258,7 +274,8 @@ class Session:
         self.proc = subprocess.Popen(
             [str(self.mgba), "--script", str(self.dir / "play.lua"), str(self.rom),
              "-l", "0"],
-            env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            preexec_fn=_die_with_parent)
         self._await(self.dir / "READY", "boot")
 
     def close(self) -> None:
