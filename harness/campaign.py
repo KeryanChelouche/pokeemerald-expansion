@@ -225,6 +225,7 @@ class Runner:
         self.team = []                       # [(nickname, species_name)]
         self.beaten = set()
         self.spent = {}                      # mapsec -> outcome (R2/R3)
+        self.graveyard = []                  # R1: append-only, never revived
         self.party_slots = 1                 # starter occupies slot 0
 
     # -- table --------------------------------------------------------------
@@ -319,15 +320,60 @@ class Runner:
                 print(f"    {who} already Lv{lv}")
                 continue
             reply, _ = sess.run(S.HCMD_SET_LEVEL, struct.pack("<BB2x", i, cap))
-            n = struct.unpack_from("<I", reply, 0)[0]
-            moves = [struct.unpack_from("<H", reply, 4 + k * 2)[0] for k in range(n)]
-            names = [self.moves.get(m, f"#{m}") for m in moves]
+            nl, np = struct.unpack_from("<2I", reply, 0)
+            learned = [struct.unpack_from("<H", reply, 8 + k * 2)[0] for k in range(nl)]
+            pending = [struct.unpack_from("<H", reply, 8 + 2 * 24 + k * 2)[0]
+                       for k in range(np)]
             print(f"    {who} Lv{lv} -> Lv{cap}")
-            if names:
-                # §4.8: these are offered, not auto-learned. TEACH_MOVE is not
-                # implemented yet, so they are reported and nothing is applied.
-                print(f"       learnable now: {', '.join(names)}")
-                print(f"       (teach_move not implemented; nothing learned yet)")
+            if learned:
+                # Already applied: the engine puts a new move in a free slot, so
+                # there is nothing to decide.
+                print(f"       learned: "
+                      f"{', '.join(self.moves.get(m, f'#{m}') for m in learned)}")
+            if pending:
+                # Four moves known, so each of these needs something forgotten.
+                print(f"       needs a slot freed: "
+                      f"{', '.join(self.moves.get(m, f'#{m}') for m in pending)}")
+                print(f"       (teach_move not implemented; these were declined)")
+
+    def read_party(self, sess):
+        """Live party from the ROM, rather than what Python believes it to be."""
+        out, _ = sess.run(S.HCMD_DUMP_STATE)
+        count = struct.unpack_from("<I", out, 0)[0]
+        party = []
+        for i in range(count):
+            off = 4 + i * PARTY_VIEW
+            sp, hp, mx, lv, alive = struct.unpack_from("<3HBB", out, off)
+            nick = decode_text(out[off + NICK_OFF:off + NICK_OFF + NICK_LEN] + b"\xff",
+                               self.charmap)
+            party.append({"slot": i, "species": sp, "hp": hp, "maxhp": mx, "level": lv,
+                          "nick": nick[0] if nick else "?",
+                          "name": self.species.get(sp, f"#{sp}")})
+        return party
+
+    def reap(self, sess, where):
+        """R1: anything at 0 HP after a battle is dead, permanently.
+
+        Removal is what makes the rule real. Left in the party, a fainted Pokemon
+        is revived by the next heal, and R10 grants unlimited healing -- so the
+        defining rule of a nuzlocke would quietly not apply.
+
+        Read back from the ROM rather than inferred from the battle transcript:
+        the party is the authority on who is standing.
+        """
+        for mon in reversed(self.read_party(sess)):      # high slots first
+            if mon["hp"] != 0:
+                continue
+            caught_at = next((sec for nick, sec in self.team if nick == mon["nick"]),
+                             "unknown")
+            self.graveyard.append({
+                "nick": mon["nick"], "species": mon["name"],
+                "level": mon["level"], "caught_at": caught_at, "died_at": where,
+            })
+            sess.run(S.HCMD_RELEASE, struct.pack("<I", mon["slot"]))
+            self.team = [(n, s) for n, s in self.team if n != mon["nick"]]
+            print(f"   † {mon['nick']} ({mon['name']} Lv{mon['level']}) died at "
+                  f"{where} — gone for good (R1)")
 
     def summary(self, sess):
         """Full party detail between battles (§4.9 via HCMD_DUMP_STATE)."""
@@ -345,10 +391,19 @@ class Runner:
                   f"Lv{lv:<3} HP {hp:>3}/{mx:<3} "
                   f"{'' if alive else '(fainted)'}  family={fam}")
 
+    def show_graveyard(self):
+        if not self.graveyard:
+            return
+        print("\n  Graveyard:")
+        for g in self.graveyard:
+            print(f"    † {g['nick']:<12} {g['species']:<12} Lv{g['level']:<3} "
+                  f"caught {g['caught_at']}, died at {g['died_at']}")
+
     def show_state(self):
         print("\n  Your team:")
         for nick, sp in self.team:
             print(f"    {nick:<12} ({sp})")
+        self.show_graveyard()
         if self.spent:
             print("  Locations spent:")
             for sec, res in self.spent.items():
@@ -429,7 +484,11 @@ class Runner:
         self.show_text(txt)
         code = out[0] if out else 0
         print(f"\n  == {nd['id']}: {OUTCOMES.get(code, code)} ==")
+        self.reap(sess, nd["id"])
         if code == 2:
+            # R9 as specified: losing the battle ends the run, regardless of what
+            # is left elsewhere.
+            self.show_graveyard()
             raise SystemExit("  whiteout — the run ends here (R9)")
         self.beaten.add(nd["id"])
 
@@ -461,6 +520,10 @@ class Runner:
         # does. Only a dupe would permit a reroll, and dupes are not modelled yet.
         self.spent[nd["mapsec"]] = OUTCOMES.get(code, str(code))
         print(f"\n  == {nd['id']}: {OUTCOMES.get(code, code)} ==")
+        self.reap(sess, nd["id"])
+        if code == 2:
+            self.show_graveyard()
+            raise SystemExit("  whiteout — the run ends here (R9)")
 
         if self.last_was_dupe:
             # R3: only a dupe permits a reroll, so the location stays open.

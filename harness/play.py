@@ -208,6 +208,7 @@ def decode(raw: bytes, species_names, move_names, charmap=None) -> dict:
     (r["battler"], r["n_moves"], r["n_switch"], r["is_double"],
      r["n_battlers"], r["alive"], r["is_wild"], r["ball_allowed"]) = \
         struct.unpack_from("<8B", raw, 0)
+    r["forced_switch"] = raw[OFF_LEGAL_SWITCH + PARTY_SIZE]
     r["battlers"] = {i: Battler(raw[OFF_BATTLERS + i * VIEW_SIZE:], species_names)
                      for i in range(MAX_BATTLERS) if r["alive"] >> i & 1}
     r["moves"] = []
@@ -237,7 +238,10 @@ def render(r: dict) -> list[tuple]:
     me = r["battlers"].get(r["battler"])
     kind = ("WILD " if r.get("is_wild") else "") + ("DOUBLE" if r["is_double"] else "SINGLE")
     print(f"\n{'=' * 66}")
-    print(f" {kind} battle — deciding for battler {r['battler']} ({SLOT_NAMES.get(r['battler'], '?')})")
+    what = ("send out a replacement" if r.get("forced_switch")
+            else f"deciding for battler {r['battler']} "
+                 f"({SLOT_NAMES.get(r['battler'], '?')})")
+    print(f" {kind} battle — {what}")
     print(f"{'=' * 66}")
 
     for bid in sorted(r["battlers"]):

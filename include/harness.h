@@ -222,10 +222,18 @@ struct HarnessSetLevelArg
 
 #define HARNESS_MAX_LEARNABLE 24
 
+// Reply to HCMD_SET_LEVEL.
+//
+// `learned` are moves the Pokemon picked up on the way, already applied: the
+// engine puts a new move straight into a free slot, so there is nothing for the
+// agent to decide. `pending` are moves it could not fit because all four slots
+// are full; each needs a TEACH_MOVE naming what to forget, or to be declined.
 struct HarnessLearnable
 {
-    u32 count;
-    u16 moves[HARNESS_MAX_LEARNABLE];
+    u32 learnedCount;
+    u32 pendingCount;
+    u16 learned[HARNESS_MAX_LEARNABLE];
+    u16 pending[HARNESS_MAX_LEARNABLE];
 };
 
 // HCMD_SET_NICKNAME payload. The name is in ROM character encoding, EOS
@@ -271,10 +279,14 @@ struct HarnessDecisionRequest
     struct HarnessMoveView moves[MAX_MON_MOVES];
     u8  legalMoveSlots[MAX_MON_MOVES];
     u8  legalSwitchSlots[PARTY_SIZE];
-    // Explicit rather than left to the compiler: without it the party array
-    // picks up implicit padding here, and a decoder that assumes none reads two
-    // bytes early and returns plausible-looking nonsense.
-    u8  padding2[2];
+    // Set when the engine is demanding a replacement because the active Pokemon
+    // fainted, rather than the agent choosing to switch. Moves are not legal in
+    // that state, so numLegalMoves is 0 and only switch targets are offered.
+    //
+    // Carved out of the existing padding so the party array does not move; that
+    // offset has been miscounted enough times already.
+    u8  forcedSwitch;
+    u8  padding2[1];
     struct HarnessPartyView party[PARTY_SIZE];
 };
 

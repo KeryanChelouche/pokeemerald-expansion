@@ -10,6 +10,7 @@
 #include "palette.h"
 #include "script.h"
 #include "pokemon.h"
+#include "pokemon_storage_system.h"
 #include "random.h"
 #include "wild_encounter.h"
 #include "script_pokemon_util.h"
@@ -371,9 +372,17 @@ static void Harness_DumpState(void)
     Harness_Ok(sizeof(*out));
 }
 
-// §4.8: levels are set explicitly because EXP is disabled. CalculateMonStats
-// must follow, and the learnable-move list must be returned, because neither
-// happens on this path the way it would on a natural level-up.
+// §4.8: levels are set explicitly because EXP is disabled.
+//
+// Moves are handed to the engine's own level-up path rather than derived here.
+// MonTryLearningNewMoveAtLevel already knows which moves a level grants, learns
+// them into free slots, tracks multiple moves at one level, and handles
+// form-change cases such as Zacian and Zamazenta declining Iron Head. An earlier
+// version of this walked the learnset by hand and got it wrong -- it offered
+// every move at or below the level, including ones the Pokemon had not reached.
+//
+// Levels are stepped one at a time because a move granted at level 3 is missed
+// entirely by jumping straight from 2 to 5.
 static void Harness_SetLevel(void)
 {
     const struct HarnessSetLevelArg *arg =
@@ -381,8 +390,7 @@ static void Harness_SetLevel(void)
     struct HarnessLearnable *out =
         (struct HarnessLearnable *)gHarnessMailbox.payloadOut;
     struct Pokemon *mon;
-    u32 i, j, n, known;
-    u8 level;
+    u32 lvl, target, from;
 
     if (gHarnessMailbox.payloadInLen < sizeof(*arg))
     {
@@ -397,49 +405,86 @@ static void Harness_SetLevel(void)
     }
 
     mon = &gParties[B_TRAINER_PLAYER][arg->slot];
-    level = arg->level;
-
-    // EXP has to be set, not just the level. CalculateMonStats begins with
-    // GetLevelFromMonExp (src/pokemon.c:1378), so writing MON_DATA_LEVEL alone
-    // is silently undone the moment stats are recalculated -- the level reverts
-    // to whatever the untouched EXP implies. §4.8 warns about this path; this is
-    // the concrete form it takes.
-    {
-        enum Species species = GetMonData(mon, MON_DATA_SPECIES);
-        u32 exp = gExperienceTables[gSpeciesInfo[species].growthRate][level];
-
-        SetMonData(mon, MON_DATA_EXP, &exp);
-    }
-    SetMonData(mon, MON_DATA_LEVEL, &level);
-    CalculateMonStats(mon);
-
+    from = GetMonData(mon, MON_DATA_LEVEL);
+    target = arg->level;
     memset(out, 0, sizeof(*out));
 
-    // Walk the learnset directly rather than GetLevelUpMovesBySpecies, which
-    // returns every level-up move with no level attached. Offering moves the
-    // Pokemon has not reached yet would let the agent teach an illegal move and
-    // look entirely legitimate doing it (§4.8: at or below the new level).
+    if (target <= from)
     {
-        const struct LevelUpMove *learnset =
-            GetSpeciesLevelUpLearnset(GetMonData(mon, MON_DATA_SPECIES));
+        Harness_Ok(sizeof(*out));
+        return;
+    }
 
-        for (i = 0; learnset[i].move != LEVEL_UP_MOVE_END
-                    && out->count < HARNESS_MAX_LEARNABLE; i++)
+    // EXP must be set, not just the level: CalculateMonStats opens with
+    // GetLevelFromMonExp (src/pokemon.c), so writing MON_DATA_LEVEL alone is
+    // silently undone as soon as stats are recalculated.
+    {
+        enum Species species = GetMonData(mon, MON_DATA_SPECIES);
+        u32 exp = gExperienceTables[gSpeciesInfo[species].growthRate][target];
+        u8 lv8 = target;
+
+        SetMonData(mon, MON_DATA_EXP, &exp);
+        SetMonData(mon, MON_DATA_LEVEL, &lv8);
+    }
+    CalculateMonStats(mon);
+
+    for (lvl = from + 1; lvl <= target; lvl++)
+    {
+        bool32 first = TRUE;
+        enum Move got;
+
+        while ((got = MonTryLearningNewMoveAtLevel(mon, first, lvl)) != MOVE_NONE)
         {
-            if (learnset[i].level > level)
-                continue;
-            known = FALSE;
-            for (j = 0; j < MAX_MON_MOVES; j++)
+            first = FALSE;
+            if (got == MON_HAS_MAX_MOVES)
             {
-                if (GetMonData(mon, MON_DATA_MOVE1 + j) == learnset[i].move)
-                    known = TRUE;
+                // Four moves known, so the engine could not place it. gMoveToLearn
+                // holds what was offered; the agent decides what it replaces.
+                if (out->pendingCount < HARNESS_MAX_LEARNABLE)
+                    out->pending[out->pendingCount++] = gMoveToLearn;
             }
-            if (!known)
-                out->moves[out->count++] = learnset[i].move;
+            else if (got != MON_ALREADY_KNOWS_MOVE)
+            {
+                if (out->learnedCount < HARNESS_MAX_LEARNABLE)
+                    out->learned[out->learnedCount++] = got;
+            }
         }
     }
 
     Harness_Ok(sizeof(*out));
+}
+
+// R1: a fainted Pokemon is dead permanently. Removing it from the party is what
+// makes that real -- otherwise HealPlayerParty revives it, and unlimited
+// out-of-battle healing is explicitly allowed by R10.
+//
+// Uses the engine's own removal idiom (ZeroMonData, CompactPartySlots,
+// CalculatePlayerPartyCount) rather than shuffling slots by hand; the party count
+// and slot ordering are the engine's business.
+//
+// The referee decides who is dead and keeps the graveyard; this only carries out
+// the removal.
+static void Harness_Release(void)
+{
+    const struct HarnessSetLevelArg *arg =
+        (const struct HarnessSetLevelArg *)gHarnessMailbox.payloadIn;   // slot only
+
+    if (gHarnessMailbox.payloadInLen < sizeof(u32))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+    if (arg->slot >= PARTY_SIZE
+     || GetMonData(&gParties[B_TRAINER_PLAYER][arg->slot], MON_DATA_SPECIES_OR_EGG) == SPECIES_NONE)
+    {
+        Harness_Fail(HERR_BAD_SLOT);
+        return;
+    }
+
+    ZeroMonData(&gParties[B_TRAINER_PLAYER][arg->slot]);
+    CompactPartySlots();
+    CalculatePlayerPartyCount();
+    Harness_Ok(0);
 }
 
 static void Harness_SetNickname(void)
@@ -620,6 +665,9 @@ void Task_HarnessDispatch(u8 taskId)
     case HCMD_SET_LEVEL:
         Harness_SetLevel();
         break;
+    case HCMD_RELEASE:
+        Harness_Release();
+        break;
     case HCMD_ROLL_ENCOUNTER:
         // Asynchronous like trainer_battle: finished by the sBattlePending
         // branch once the encounter battle ends.
@@ -645,7 +693,6 @@ void Task_HarnessDispatch(u8 taskId)
     case HCMD_EVOLVE:
     case HCMD_GIVE_ITEM:
     case HCMD_PARTY_ARRANGE:
-    case HCMD_RELEASE:
     case HCMD_DECISION:
         Harness_Fail(HERR_NOT_IMPLEMENTED);
         break;

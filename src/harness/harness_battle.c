@@ -21,6 +21,11 @@
 static EWRAM_DATA struct HarnessDecision sDecision[MAX_BATTLERS_COUNT] = {0};
 static EWRAM_DATA bool8 sHaveDecision[MAX_BATTLERS_COUNT] = {0};
 
+// True while publishing a request for a replacement after a faint, as opposed to
+// a normal turn. Kept out of the request-building code's arguments so the two
+// paths share one serialiser.
+static EWRAM_DATA bool8 sAskingReplacement = FALSE;
+
 static void Harness_FillBattlerView(struct HarnessBattlerView *v, u32 battler)
 {
     struct BattlePokemon *mon = &gBattleMons[battler];
@@ -63,6 +68,7 @@ static void Harness_PublishRequest(u32 battler)
     // agent declining to use it.
     req->isWild = !(gBattleTypeFlags & BATTLE_TYPE_TRAINER);
     req->ballAllowed = req->isWild && gHarnessCatchAllowed;
+    req->forcedSwitch = sAskingReplacement;
 
     // Indexed by battler id so it also serves as the §4.9 position map. Absent
     // battlers stay zeroed and simply have no aliveMask bit.
@@ -79,7 +85,11 @@ static void Harness_PublishRequest(u32 battler)
         req->moves[i].pp    = gBattleMons[battler].pp[i];
         req->moves[i].maxPP = CalculatePPWithBonus(gBattleMons[battler].moves[i],
                                                   gBattleMons[battler].ppBonuses, i);
-        if (gBattleMons[battler].moves[i] != MOVE_NONE && gBattleMons[battler].pp[i] != 0)
+        // A fainted battler cannot attack, so no move is legal (§4.7 requires
+        // the list to contain only legal actions, not merely plausible ones).
+        if (!sAskingReplacement
+         && gBattleMons[battler].moves[i] != MOVE_NONE
+         && gBattleMons[battler].pp[i] != 0)
             req->legalMoveSlots[req->numLegalMoves++] = i;
     }
 
@@ -168,18 +178,61 @@ bool8 Harness_BattleChooseAction(u32 battler)
     return TRUE;
 }
 
-// A switch action would otherwise open the party menu and block forever on
-// input. The slot the agent chose was already validated against
-// legalSwitchSlots when the request was built.
-bool8 Harness_BattleChoosePokemon(u32 battler)
+// Installed while waiting for a replacement choice. Separate from
+// Harness_WaitForDecision because the reply is submitted differently: a
+// replacement is a chosen party slot, not a battle action.
+static void Harness_WaitForReplacement(enum BattlerId battler)
 {
-    if (!sHaveDecision[battler] || sDecision[battler].type != HACT_SWITCH)
-        return FALSE;
+    const struct HarnessDecision *d;
 
-    BtlController_EmitChosenMonReturnValue(battler, B_COMM_TO_ENGINE,
-                                          sDecision[battler].slot,
+    if (gHarnessMailbox.status != HSTAT_CMD_PENDING
+     || gHarnessMailbox.command != HCMD_DECISION)
+        return;
+
+    d = (const struct HarnessDecision *)gHarnessMailbox.payloadIn;
+    if (gHarnessMailbox.payloadInLen < sizeof(*d))
+    {
+        gHarnessMailbox.payloadOut[0] = HERR_BAD_PAYLOAD;
+        gHarnessMailbox.payloadOutLen = 1;
+        gHarnessMailbox.status = HSTAT_ERROR;
+        gHarnessMailbox.command = HCMD_NONE;
+        gHarnessMailbox.sequence++;
+        return;
+    }
+
+    sDecision[battler] = *d;
+    sHaveDecision[battler] = FALSE;      // consumed; not a pending turn action
+    sAskingReplacement = FALSE;
+
+    gHarnessMailbox.command = HCMD_NONE;
+    gHarnessMailbox.payloadOutLen = 0;
+    gHarnessMailbox.status = HSTAT_IDLE;
+    gHarnessMailbox.sequence++;
+
+    BtlController_EmitChosenMonReturnValue(battler, B_COMM_TO_ENGINE, d->slot,
                                           gBattlePartyCurrentOrder);
     BtlController_Complete(battler);
+}
+
+// Two different questions arrive here. Either the agent chose to switch, in which
+// case the slot is already decided, or the active Pokemon fainted and the engine
+// is demanding a replacement -- which must be asked, not guessed. Without the
+// second path the party menu opens and blocks on input forever, which is exactly
+// what happens the first time something dies.
+bool8 Harness_BattleChoosePokemon(u32 battler)
+{
+    if (sHaveDecision[battler] && sDecision[battler].type == HACT_SWITCH)
+    {
+        BtlController_EmitChosenMonReturnValue(battler, B_COMM_TO_ENGINE,
+                                              sDecision[battler].slot,
+                                              gBattlePartyCurrentOrder);
+        BtlController_Complete(battler);
+        return TRUE;
+    }
+
+    sAskingReplacement = TRUE;
+    Harness_PublishRequest(battler);
+    gBattlerControllerFuncs[battler] = Harness_WaitForReplacement;
     return TRUE;
 }
 
