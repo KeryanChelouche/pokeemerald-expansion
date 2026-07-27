@@ -47,7 +47,7 @@ HCMD_SET_SEED, HCMD_DECISION = 15, 16
 SYSTEM_FLAGS = 0x860
 BADGE_FLAGS = [SYSTEM_FLAGS + 0x7 + i for i in range(8)]
 HSTAT_DECISION_PENDING = 2
-HACT_MOVE, HACT_SWITCH, HACT_BALL = 0, 1, 2
+HACT_MOVE, HACT_SWITCH, HACT_BALL, HACT_RUN = 0, 1, 2, 3
 ITEM_POKE_BALL = 1
 HTARGET_DEFAULT = 0xFF
 PAYLOAD_SIZE = 2048
@@ -110,8 +110,24 @@ TEXT_CONTROL = {0xFA: " ", 0xFB: " ", 0xFE: " "}
 # Multi-byte ligatures and control sequences, longest-match first. Without
 # these, `PKMN` (53 54) decodes as two unrelated single-byte glyphs and reads as
 # mojibake. FD xx are text-buffer placeholders the battle engine substitutes.
-# Argument counts for FC control codes; see charmap.txt.
-FC_ARGS = {0x00: 0, 0x04: 3, 0x09: 0, 0x0A: 0, 0x0B: 1, 0x10: 0, 0x11: 0, 0x12: 1}
+# Argument counts for FC control codes, from the names in charmap.txt. Sound and
+# music ids are 16-bit, so PLAY_BGM and PLAY_SE take two argument bytes; skipping
+# only one leaks the second into the text as a stray glyph.
+FC_ARGS = {
+    0x00: 0,   # NAME_END
+    0x01: 1, 0x02: 1, 0x03: 1,          # COLOR / HIGHLIGHT / SHADOW
+    0x04: 3,   # COLOR_HIGHLIGHT_SHADOW
+    0x05: 1, 0x06: 1,                   # PALETTE / FONT
+    0x07: 0,   # RESET_FONT
+    0x08: 1,   # PAUSE
+    0x09: 0, 0x0A: 0,                   # PAUSE_UNTIL_PRESS / WAIT_SE
+    0x0B: 2,   # PLAY_BGM, u16 song id
+    0x0C: 1, 0x0D: 1, 0x0E: 1,          # ESCAPE / SHIFT_RIGHT / SHIFT_DOWN
+    0x0F: 0,   # FILL_WINDOW
+    0x10: 2,   # PLAY_SE, u16 sound id
+    0x11: 1, 0x12: 1, 0x13: 1, 0x14: 1, # CLEAR / SKIP / CLEAR_TO / SPACING
+    0x15: 0, 0x16: 0, 0x17: 0,          # JPN / ENG / PAUSE_MUSIC
+}
 
 MULTI = {
     (0x53, 0x54): "POKéMON",
@@ -277,6 +293,11 @@ def render(r: dict) -> list[tuple]:
     if r.get("ball_allowed"):
         menu.append(("Throw  POKé BALL", (HACT_BALL, ITEM_POKE_BALL & 0xFF,
                                           ITEM_POKE_BALL >> 8)))
+    # Fleeing is a wild-battle action only; trainers cannot be run from. It can
+    # still fail (trapping abilities, speed), which is a legitimate outcome
+    # rather than an illegal action, so it is offered whenever it is selectable.
+    if r.get("is_wild") and not r.get("forced_switch"):
+        menu.append(("Run    from the battle", (HACT_RUN, 0, HTARGET_DEFAULT)))
 
     for i, (label, _) in enumerate(menu, 1):
         print(f"   {i:>2}) {label}")

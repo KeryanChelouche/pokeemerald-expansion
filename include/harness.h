@@ -140,6 +140,7 @@ enum HarnessActionType
     HACT_MOVE = 0,
     HACT_SWITCH,
     HACT_BALL,          // wild battles only; see encounterCatchAllowed (§4.6)
+    HACT_RUN,           // wild battles only; fleeing a trainer is not possible
 };
 
 // HCMD_ROLL_ENCOUNTER payload. Methods mirror spec §4.5.

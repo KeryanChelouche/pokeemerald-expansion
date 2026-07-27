@@ -150,6 +150,10 @@ static void Harness_WaitForDecision(enum BattlerId battler)
     {
         BtlController_EmitTwoReturnValues(battler, B_COMM_TO_ENGINE, B_ACTION_SWITCH, 0);
     }
+    else if (d->type == HACT_RUN)
+    {
+        BtlController_EmitTwoReturnValues(battler, B_COMM_TO_ENGINE, B_ACTION_RUN, 0);
+    }
     else if (d->type == HACT_BALL)
     {
         // `slot` and `target` carry the ball item id, low byte first.
