@@ -18,6 +18,7 @@ Requires harness_symbols.json.
 """
 
 import argparse
+import json
 import pathlib
 import re
 import struct
@@ -27,6 +28,7 @@ import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import session as S                                    # noqa: E402
+from ledger import Ledger                              # noqa: E402
 from play import (BADGE_FLAGS, HACT_BALL, HACT_MOVE, HACT_SWITCH,  # noqa: E402
                   HTARGET_DEFAULT, ITEM_POKE_BALL, METHODS, SPEC_FMT,
                   decode, decode_text, load_charmap, load_names, render)
@@ -228,6 +230,8 @@ class Runner:
         self.beaten = set()
         self.spent = {}                      # mapsec -> outcome (R2/R3)
         self.graveyard = []                  # R1: append-only, never revived
+        self.led = None                      # §11 ledger, opened in main()
+        self.turn = 0                        # decisions within the current battle
         self.party_slots = 1                 # starter occupies slot 0
 
     # -- table --------------------------------------------------------------
@@ -369,6 +373,8 @@ class Runner:
                 "nick": mon["nick"], "species": mon["name"],
                 "level": mon["level"], "caught_at": caught_at, "died_at": where,
             })
+            self.log("death", nickname=mon["nick"], species=mon["name"],
+                     level=mon["level"], caught_at=caught_at, died_at=where)
             sess.run(S.HCMD_RELEASE, struct.pack("<I", mon["slot"]))
             self.team = [(n, s) for n, s in self.team if n != mon["nick"]]
             print(f"   † {mon['nick']} ({mon['name']} Lv{mon['level']}) died at "
@@ -496,9 +502,14 @@ class Runner:
     def family(self, species_id):
         return self.families.get(species_id, species_id)
 
+    def log(self, kind, **fields):
+        if self.led is not None:
+            self.led.write(self.sess.frame, kind, **fields)
+
     def choose(self, raw, txt):
         self.show_text(txt)
         r = decode(raw, self.species, self.moves, self.charmap)
+        self.turn += 1
 
         # R4/R3, enforced by the referee before the agent sees the list (§8.2):
         # a dupe cannot be caught, and the location is not spent by meeting one.
@@ -514,16 +525,40 @@ class Runner:
                 self.last_was_dupe = True
 
         menu = render(r)
+        me = r["battlers"].get(r["battler"])
+        foe = r["battlers"].get(1)
+        if self.led is not None:
+            # The enumerated list is recorded, not just the pick: §4.7's rule is
+            # that the agent chooses from legal actions, and a replay cannot
+            # check that without knowing what was on offer.
+            self.led.write(self.sess.frame, "decision_request", turn=self.turn,
+                           battler=r["battler"],
+                           forced_switch=bool(r.get("forced_switch")),
+                           wild=bool(r.get("is_wild")),
+                           me=(f"{me.name} Lv{me.level} {me.hp}/{me.maxhp}"
+                               if me else None),
+                           foe=(f"{foe.name} Lv{foe.level} {foe.hp}/{foe.maxhp}"
+                                if foe else None),
+                           legal_actions=[label for label, _ in menu],
+                           text=decode_text(txt, self.charmap))
+
         if self.args.auto:
             print(f" auto-> {menu[0][0]}")
-            return menu[0][1]
-        while True:
-            pick = input(f" Choose [1-{len(menu)}] (q to quit): ").strip()
-            if pick.lower() in ("q", "quit"):
-                raise SystemExit("stopped")
-            if pick.isdigit() and 1 <= int(pick) <= len(menu):
-                print(f"  -> {menu[int(pick) - 1][0]}")
-                return menu[int(pick) - 1][1]
+            chosen = 0
+        else:
+            while True:
+                pick = input(f" Choose [1-{len(menu)}] (q to quit): ").strip()
+                if pick.lower() in ("q", "quit"):
+                    self.log("run_end_early", reason="operator quit")
+                    raise SystemExit("stopped")
+                if pick.isdigit() and 1 <= int(pick) <= len(menu):
+                    chosen = int(pick) - 1
+                    break
+            print(f"  -> {menu[chosen][0]}")
+        act_kind, slot, target = menu[chosen][1]
+        self.log("decision", turn=self.turn, action=menu[chosen][0],
+                 index=chosen, act=act_kind, slot=slot, target=target)
+        return menu[chosen][1]
 
     def ask_nickname(self, what, default):
         if self.args.auto:
@@ -537,6 +572,10 @@ class Runner:
     # -- actions ------------------------------------------------------------
     def do_fight(self, sess, nd):
         self.last_was_dupe = False
+        self.turn = 0
+        self.log("fight_start", node=nd["id"], trainer=nd["trainer_resolved"],
+                 trainer_id=self.trainers[nd["trainer_resolved"]],
+                 battle_kind=nd.get("battle_kind", "single"))
         kind = 0 if nd.get("battle_kind", "single") == "single" else 1
         out, txt = sess.run(S.HCMD_TRAINER_BATTLE,
                             struct.pack("<HHB3x", self.trainers[nd["trainer_resolved"]],
@@ -545,11 +584,13 @@ class Runner:
         self.show_text(txt)
         code = out[0] if out else 0
         print(f"\n  == {nd['id']}: {OUTCOMES.get(code, code)} ==")
+        self.log("fight_end", node=nd["id"], result=OUTCOMES.get(code, str(code)))
         self.reap(sess, nd["id"])
         if code == 2:
             # R9 as specified: losing the battle ends the run, regardless of what
             # is left elsewhere.
             self.show_graveyard()
+            self.log("run_end", cause="whiteout")
             raise SystemExit("  whiteout — the run ends here (R9)")
         self.beaten.add(nd["id"])
 
@@ -570,6 +611,13 @@ class Runner:
                     break
 
         self.last_was_dupe = False
+        self.turn = 0
+        self.log("method_choice", node=nd["id"], location=nd["mapsec"],
+                 available=[f"{d['method']} on {d['map']}" for d in avail],
+                 chosen=f"{draw['method']} on {draw['map']}",
+                 map_group=self.maps[draw["map"]][0],
+                 map_num=self.maps[draw["map"]][1],
+                 method_id=METHODS[draw["method"]])
         group, num = self.maps[draw["map"]]
         sess.run(S.HCMD_WARP, struct.pack("<4B", group, num, 5, 5))
         out, txt = sess.run(S.HCMD_ROLL_ENCOUNTER,
@@ -581,9 +629,12 @@ class Runner:
         # does. Only a dupe would permit a reroll, and dupes are not modelled yet.
         self.spent[nd["mapsec"]] = OUTCOMES.get(code, str(code))
         print(f"\n  == {nd['id']}: {OUTCOMES.get(code, code)} ==")
+        self.log("encounter_end", node=nd["id"], location=nd["mapsec"],
+                 outcome=OUTCOMES.get(code, str(code)), dupe=self.last_was_dupe)
         self.reap(sess, nd["id"])
         if code == 2:
             self.show_graveyard()
+            self.log("run_end", cause="whiteout")
             raise SystemExit("  whiteout — the run ends here (R9)")
 
         if self.last_was_dupe:
@@ -598,6 +649,9 @@ class Runner:
             nick = self.ask_nickname("new catch", f"CAUGHT{slot}")
             sess.run(S.HCMD_SET_NICKNAME, nickname_payload(slot, nick, self.charmap))
             self.team.append((nick, nd["mapsec"]))
+            self.log("catch", nickname=nick, location=nd["mapsec"],
+                     species=self.species.get(self.last_caught_species,
+                                              str(self.last_caught_species)))
             print(f"  {nick} joins the team in slot {slot + 1}")
 
     # -- the loop -----------------------------------------------------------
@@ -629,7 +683,22 @@ class Runner:
               f"seed 0x{self.args.seed:08X}")
 
         party = build_party([(0x12345678, sp_id, 5, STARTER_MOVES[sp_id])])
+        rom_sha1 = json.loads(self.args.symbols.read_text()).get("rom_sha1", "?")
+
         with S.Session(self.args.mgba, self.args.rom, self.args.symbols) as sess:
+            self.sess = sess
+            self.led = Ledger(self.args.ledger, rom_sha1=rom_sha1,
+                              seed=self.args.seed, attempt=self.args.attempt,
+                              trainer=starter_nick, mgba=self.args.mgba)
+            # Every command is recorded, not only the semantic events. A replay
+            # that reconstructs the command sequence instead of reissuing it runs
+            # a different number of commands and drifts out of frame alignment
+            # even when every decision matches.
+            sess.on_command = lambda cmd, payload, at: self.led.write(
+                at, "command", cmd=cmd, payload=payload.hex().upper())
+            self.log("starter", species=self.species.get(sp_id, str(sp_id)),
+                     species_id=sp_id, level=5, moves=STARTER_MOVES[sp_id],
+                     nickname=starter_nick)
             sess.bootstrap(self.args.seed, party)
             sess.run(S.HCMD_SET_NICKNAME,
                      nickname_payload(0, starter_nick, self.charmap))
@@ -688,6 +757,8 @@ class Runner:
             print(f"\n{'=' * 68}")
             print(" Slice complete.")
             self.show_state()
+            self.led.close(sess.frame, "slice complete")
+            print(f"\n Ledger written to {self.args.ledger}")
         return 0
 
 
@@ -702,6 +773,11 @@ def main():
     ap.add_argument("--seed", type=lambda s: int(s, 0), default=0xC0FFEE01)
     ap.add_argument("--auto", action="store_true",
                     help="take the first option everywhere, for smoke testing")
+    ap.add_argument("--attempt", type=int, default=1,
+                    help="attempt number, recorded in the ledger header")
+    ap.add_argument("--ledger", type=pathlib.Path,
+                    default=pathlib.Path("runs/attempt.jsonl"),
+                    help="append-only run ledger (§11)")
     return Runner(ap.parse_args()).main()
 
 

@@ -52,7 +52,7 @@ local DIR = "{dir}"
 local READY_FLAG = {ready}
 
 local n, booted = 0, false
-local cmdN, busy, answered, inBattleCmd = 1, false, 0, false
+local cmdN, busy, answered, inBattleCmd, appliedAt = 1, false, 0, false, 0
 local reqN, awaiting, lastW = 0, false, 0
 
 local function writeAtomic(name, body)
@@ -112,7 +112,8 @@ callbacks:add("frame", function()
   if emu:read16(B + 2) == {pending} and not awaiting then
     reqN = reqN + 1
     writeAtomic("txt_" .. reqN, drainText())
-    writeAtomic("req_" .. reqN, hexFrom(OUT, emu:read16(B + 10)))
+    writeAtomic("req_" .. reqN,
+                string.format("%d %s", n, hexFrom(OUT, emu:read16(B + 10))))
     awaiting = true
   end
 
@@ -141,7 +142,8 @@ callbacks:add("frame", function()
        and (answered == 0 or emu:read16(B + 10) == 1) then
       writeAtomic("txt_done_" .. cmdN, drainText())
       writeAtomic("done_" .. cmdN,
-                  string.format("%d %s", emu:read16(B + 2), hexFrom(OUT, emu:read16(B + 10))))
+                  string.format("%d %d %d %s", n, appliedAt, emu:read16(B + 2),
+                                hexFrom(OUT, emu:read16(B + 10))))
       busy = false
       inBattleCmd = false
       cmdN = cmdN + 1
@@ -159,6 +161,7 @@ callbacks:add("frame", function()
       emu:write8(B + 12 + i, tonumber(hex:sub(i * 2 + 1, i * 2 + 2), 16))
     end
     answered = 0
+    appliedAt = n
     -- Only these produce battle messages that need advancing.
     inBattleCmd = (id == {c_battle} or id == {c_enc})
     emu:write16(B + 8, len); emu:write16(B + 0, id); emu:write16(B + 2, 1)
@@ -191,11 +194,15 @@ class Session:
         self.dir = pathlib.Path(self._td.name)
         self.n = 0          # commands issued
         self.reqs = 0       # decisions served
+        self.frame = 0      # emulator frame of the last event (§11 requires it)
+        self.extra_lua = ""  # appended verbatim; used by replay to capture frames
+        self.on_command = None   # called with (cmd, payload, applied_frame)
+        self.applied_frame = 0   # frame the ROM actually picked up the command
         self.proc = None
 
     # -- lifecycle ----------------------------------------------------------
     def start(self) -> None:
-        (self.dir / "play.lua").write_text(LUA.format(
+        (self.dir / "play.lua").write_text(self.extra_lua + LUA.format(
             base=self.base, off_out=OFF_PAYLOAD_OUT, tlog=self.tlog,
             tsize=TEXTLOG_SIZE, dir=self.dir, c_dec=HCMD_DECISION,
             pending=HSTAT_DECISION_PENDING, ready=self.ready,
@@ -260,10 +267,15 @@ class Session:
             done = self.dir / f"done_{self.n}"
             if req.exists():
                 self.reqs += 1
+                frame, _, hexreq = req.read_text().partition(" ")
+                self.frame = int(frame)
                 txt = self._take_text(f"txt_{self.reqs}")
-                return ("decision", bytes.fromhex(req.read_text()), txt)
+                return ("decision", bytes.fromhex(hexreq.strip()), txt)
             if done.exists():
-                status, _, hexout = done.read_text().partition(" ")
+                parts = (done.read_text().split(None, 3) + ["", "", "", ""])[:4]
+                frame, applied, status, hexout = parts
+                self.frame = int(frame)
+                self.applied_frame = int(applied)
                 txt = self._take_text(f"txt_done_{self.n}")
                 return ("done", int(status), bytes.fromhex(hexout.strip()), txt)
             if self.proc and self.proc.poll() is not None:
@@ -302,6 +314,12 @@ class Session:
                 if status == HSTAT_ERROR:
                     raise SessionError(f"command {cmd} failed, error code "
                                        f"{out[0] if out else '?'}")
+                # Reported after completion, when the frame it was applied on is
+                # known. Recording it at send() time stores whatever frame the
+                # previous event happened to be on, which a replay then honours
+                # and stalls.
+                if self.on_command is not None:
+                    self.on_command(cmd, payload, self.applied_frame)
                 return out, b"".join(transcript)
 
     # -- convenience --------------------------------------------------------

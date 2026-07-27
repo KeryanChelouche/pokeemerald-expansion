@@ -1,0 +1,34 @@
+diff --git a/src/platform/headless-main.c b/src/platform/headless-main.c
+index 61110b1..20c949e 100644
+--- a/src/platform/headless-main.c
++++ b/src/platform/headless-main.c
+@@ -70,6 +70,8 @@ void (*_armSwi16)(struct ARMCore* cpu, int immediate);
+ void (*_armSwi32)(struct ARMCore* cpu, int immediate);
+ #endif
+ 
++static void* _headlessVideoBuffer = NULL;
++
+ int main(int argc, char * argv[]) {
+ 	signal(SIGINT, _headlessShutdown);
+ 
+@@ -114,6 +116,20 @@ int main(int argc, char * argv[]) {
+ 		goto argsExit;
+ 	}
+ 	core->init(core);
++
++	// Attach a framebuffer. The headless frontend draws nothing, so upstream
++	// never sets one -- which makes emu:screenshot() read an unset buffer and
++	// crash. A run has to be renderable to be recorded, so allocate one sized
++	// from the core itself rather than assuming GBA dimensions.
++	{
++		unsigned w, h;
++		core->baseVideoSize(core, &w, &h);
++		_headlessVideoBuffer = malloc(w * h * sizeof(mColor));
++		if (_headlessVideoBuffer) {
++			core->setVideoBuffer(core, _headlessVideoBuffer, w);
++		}
++	}
++
+ 	mCoreInitConfig(core, "headless");
+ 	mArgumentsApply(&args, NULL, 0, &core->config);
+ 

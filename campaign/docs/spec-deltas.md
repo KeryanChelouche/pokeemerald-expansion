@@ -95,6 +95,17 @@ Build it outside any ephemeral scratch directory (this project uses `/root/mgba-
 pruned scratch directory silently removes the emulator, and every test then reports "no
 output" — which looks exactly like a ROM hang rather than a missing binary.
 
+**One local patch on top of that commit**, kept as `tools/mgba-headless-framebuffer.patch`.
+The headless frontend never calls `setVideoBuffer`, because it draws nothing — which makes
+`emu:screenshot()` read an unset buffer and segfault. A run has to be renderable to be
+recorded (§12), so the patch allocates a framebuffer sized from the core, following the
+pattern in mGBA's own `perf-main.c`. Sixteen lines.
+
+This matters for reproducibility: the emulator is now `c034660` **plus this patch**, so
+`mgba_commit` alone no longer identifies the build. Apply the patch when rebuilding, or
+recording stops working and replay comparisons are made against a different binary than
+the one that produced them.
+
 Verified working end to end: script loads, `callbacks:add("frame", ...)` fires, and
 `emu:read8/read32` return correct data from the running ROM.
 
@@ -177,6 +188,40 @@ bit-identical replay, so M2 can now be built on it.
 A caution on testing this: a comparison run is only meaningful if the ROM is unchanged for
 its whole duration. An earlier attempt overlapped a rebuild, so the two halves ran different
 ROMs and its "identical" verdict was worthless. Rebuild first, then compare.
+
+## §12 Replay and recording — status
+
+**Recording works.** With the framebuffer patch above, `emu:screenshot()` produces real
+240x160 PNGs from the emulator's own output, which ffmpeg assembles into video. Verified:
+900 captured frames became a 30-second 480x320 mp4. What is recorded is what the game drew,
+not a reconstruction.
+
+**Replay does not work yet.** The ledger records everything needed and the driver exists,
+but a replayed run diverges.
+
+The reason is worth stating, because it invalidates the obvious approach. A command is
+applied on whichever frame the emulator next polls for it, so the frame depends on the
+driver's wall-clock latency. That is not merely cosmetic drift: **the overworld consumes RNG
+while it idles**, so a different number of idle frames changes the RNG state before a battle
+begins, and the same decisions then produce a different battle. Measured: replaying an
+11-decision run through the live driver needed only 7.
+
+So replay cannot keep Python in the loop. `harness/replay_lua.py` pre-loads the whole plan —
+every command and decision reply, each pinned to the frame it was originally applied on —
+and Lua applies each on exactly that frame. That much works: 17 of 24 entries land on their
+exact recorded frames. It then drifts and stalls, because a command that arrives late pushes
+everything after it, and the message-advancing keypress pulse is itself frame-dependent.
+
+Two things had to be fixed to get that far, both worth keeping in mind:
+
+- Command frames were recorded at `send()` time, which is the frame of the *previous* event.
+  The first command was logged at frame 0 when it was really applied around frame 1200. Lua
+  now timestamps the frame it actually picks a command up, and that is what the ledger
+  stores.
+- §12 asks for an identical *event stream*, not identical frame numbers, and frame indexing
+  exists for overlay sync (§11). But because idle frames consume RNG, frame alignment turns
+  out to be a precondition for the event stream matching at all — the looser criterion does
+  not buy the freedom it appears to.
 
 ## §2 Components
 

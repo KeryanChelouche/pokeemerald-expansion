@@ -69,3 +69,6 @@ __pycache__
 
 # harness generated symbol table (tools/harness_syms)
 harness_symbols.json
+
+# run ledgers
+runs/
