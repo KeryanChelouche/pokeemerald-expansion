@@ -20,6 +20,8 @@ Requires harness_symbols.json.
 import argparse
 import json
 import pathlib
+import shutil
+import subprocess
 import re
 import struct
 import sys
@@ -51,7 +53,9 @@ STARTERS = {
     "MUDKIP":   ("SPECIES_MUDKIP", 258, "MUDKIP"),
 }
 STARTER_MOVES = {277: [33], 255: [33], 258: [33]}   # Tackle/Scratch stand-in
-NAME_LEN = 12      # POKEMON_NAME_LENGTH in constants/global.h
+NAME_LEN = 12         # POKEMON_NAME_LENGTH
+PLAYER_NAME_LEN = 7   # PLAYER_NAME_LENGTH
+MALE, FEMALE = 0, 1
 
 
 def encode_name(text: str, charmap: dict[int, str]) -> bytes:
@@ -224,6 +228,7 @@ class Runner:
         self.owned_families: set[int] = set()   # R4: includes dead members
         self.capabilities = set(START_CAPABILITIES)
         self.starter = None
+        self.gender, self.player_name, self.rival = MALE, "?", "MAY"
         self.last_was_dupe = False
         self.last_caught_species = 0
         self.team = []                       # [(nickname, species_name)]
@@ -240,7 +245,8 @@ class Runner:
         problems, ids = [], {n["id"] for n in nodes}
         for nd in nodes:
             if nd["kind"] == "trainer_battle":
-                key = nd["trainer"].replace("{starter}", self.starter)
+                key = (nd["trainer"].replace("{starter}", self.starter)
+                                    .replace("{rival}", self.rival))
                 nd["trainer_resolved"] = key
                 if key not in self.trainers:
                     problems.append(f"{nd['id']}: unknown trainer {key}")
@@ -655,6 +661,28 @@ class Runner:
             print(f"  {nick} joins the team in slot {slot + 1}")
 
     # -- the loop -----------------------------------------------------------
+    def pick_trainer(self):
+        """Name and gender belong to the attempt. Gender is not decoration: it
+        decides which rival the campaign resolves."""
+        if self.args.auto:
+            self.gender, self.player_name = MALE, "AUTO"
+        else:
+            print("\nWho is attempting this run?")
+            name = ""
+            while not name:
+                name = input(f"  Trainer name (max {PLAYER_NAME_LEN}): ").strip().upper()
+            self.player_name = name[:PLAYER_NAME_LEN]
+            while True:
+                g = input("  Gender — (m)ale or (f)emale: ").strip().lower()
+                if g.startswith("m"):
+                    self.gender = MALE
+                    break
+                if g.startswith("f"):
+                    self.gender = FEMALE
+                    break
+        self.rival = "MAY" if self.gender == MALE else "BRENDAN"
+        return self.player_name, self.gender
+
     def pick_starter(self):
         keys = list(STARTERS)
         if self.args.auto:
@@ -677,89 +705,128 @@ class Runner:
         return sp_id, nick
 
     def main(self):
+        name, gender = self.pick_trainer()
         sp_id, starter_nick = self.pick_starter()
         nodes = self.load_nodes(ROOT / "campaign/nodes.yaml")
-        print(f"\nCampaign: {len(nodes)} nodes, starter {self.starter}, "
-              f"seed 0x{self.args.seed:08X}")
+        print(f"\nCampaign: {name} ({'male' if gender == MALE else 'female'}), "
+              f"starter {self.starter}, rival {self.rival}, "
+              f"{len(nodes)} nodes, seed 0x{self.args.seed:08X}")
 
         party = build_party([(0x12345678, sp_id, 5, STARTER_MOVES[sp_id])])
         rom_sha1 = json.loads(self.args.symbols.read_text()).get("rom_sha1", "?")
 
-        with S.Session(self.args.mgba, self.args.rom, self.args.symbols) as sess:
-            self.sess = sess
-            self.led = Ledger(self.args.ledger, rom_sha1=rom_sha1,
-                              seed=self.args.seed, attempt=self.args.attempt,
-                              trainer=starter_nick, mgba=self.args.mgba)
-            # Every command is recorded, not only the semantic events. A replay
-            # that reconstructs the command sequence instead of reissuing it runs
-            # a different number of commands and drifts out of frame alignment
-            # even when every decision matches.
-            sess.on_command = lambda cmd, payload, at: self.led.write(
-                at, "command", cmd=cmd, payload=payload.hex().upper())
-            self.log("starter", species=self.species.get(sp_id, str(sp_id)),
-                     species_id=sp_id, level=5, moves=STARTER_MOVES[sp_id],
-                     nickname=starter_nick)
-            sess.bootstrap(self.args.seed, party)
-            sess.run(S.HCMD_SET_NICKNAME,
-                     nickname_payload(0, starter_nick, self.charmap))
+        shots = None
+        if self.args.video:
+            shots = self.args.ledger.parent / "frames"
+            if shots.exists():
+                shutil.rmtree(shots)
 
-            while True:
-                fight = self.next_fight(nodes)
-                locs = self.open_locations(nodes)
-                if fight is None and not locs:
-                    break
+        # try/finally, because a run that ends in a whiteout is exactly the run
+        # worth having footage of. Encoding only on the success path would drop
+        # every failed attempt, which is most of them in a nuzlocke.
+        try:
+          with S.Session(self.args.mgba, self.args.rom, self.args.symbols,
+                         shots=shots, every=self.args.every) as sess:
+              self.sess = sess
+              self.led = Ledger(self.args.ledger, rom_sha1=rom_sha1,
+                                seed=self.args.seed, attempt=self.args.attempt,
+                                trainer=name, mgba=self.args.mgba)
+              # Every command is recorded, not only the semantic events. A replay
+              # that reconstructs the command sequence instead of reissuing it runs
+              # a different number of commands and drifts out of frame alignment
+              # even when every decision matches.
+              sess.on_command = lambda cmd, payload, at: self.led.write(
+                  at, "command", cmd=cmd, payload=payload.hex().upper())
+              sess.bootstrap(self.args.seed, party)
+              # Identity is applied as a command so the choice is recorded and
+              # replayable, rather than baked into the build.
+              sess.run(S.HCMD_SET_PLAYER,
+                       struct.pack("<B3x", gender)
+                       + encode_name(name, self.charmap)[:PLAYER_NAME_LEN + 1]
+                         .ljust(PLAYER_NAME_LEN + 1, b"\xff"))
+              self.log("trainer", name=name,
+                       gender="male" if gender == MALE else "female",
+                       rival=self.rival)
+              self.log("starter", species=self.species.get(sp_id, str(sp_id)),
+                       species_id=sp_id, level=5, moves=STARTER_MOVES[sp_id],
+                       nickname=starter_nick)
+              sess.run(S.HCMD_SET_NICKNAME,
+                       nickname_payload(0, starter_nick, self.charmap))
 
-                options = []
-                print(f"\n{'#' * 68}")
-                print("# What now?")
-                print(f"{'#' * 68}")
-                if fight is not None:
-                    options.append(("fight", fight))
-                    for i, line in enumerate(self.describe_fight(fight)):
-                        print(f"  {len(options)}) {line}" if i == 0 else f"     {line}")
-                for nd in locs:
-                    options.append(("loc", nd))
-                    for i, line in enumerate(self.describe_location(nd)):
-                        print(f"  {len(options)}) {line}" if i == 0 else f"     {line}")
-                self.show_state()
+              while True:
+                  fight = self.next_fight(nodes)
+                  locs = self.open_locations(nodes)
+                  if fight is None and not locs:
+                      break
 
-                if self.args.auto:
-                    kind, nd = options[0]
-                else:
-                    while True:
-                        pk = input(f"\n  Choose [1-{len(options)}], (s)ummary, "
-                                   f"(l)evel, (e)volve, (a)rrange, (h)eal, "
-                                   f"(q)uit: ").strip().lower()
-                        if pk in ("s", "summary"):
-                            self.summary(sess)
-                            continue
-                        if pk in ("l", "level"):
-                            self.level_to_cap(sess, nodes)
-                            continue
-                        if pk in ("e", "evolve"):
-                            self.evolve_all(sess)
-                            continue
-                        if pk in ("a", "arrange"):
-                            self.arrange(sess)
-                            continue
-                        if pk in ("h", "heal"):
-                            sess.run(S.HCMD_HEAL)
-                            print("  party healed (HP, status and PP)")
-                            continue
-                        if pk in ("q", "quit"):
-                            raise SystemExit("stopped")
-                        if pk.isdigit() and 1 <= int(pk) <= len(options):
-                            kind, nd = options[int(pk) - 1]
-                            break
+                  options = []
+                  print(f"\n{'#' * 68}")
+                  print("# What now?")
+                  print(f"{'#' * 68}")
+                  if fight is not None:
+                      options.append(("fight", fight))
+                      for i, line in enumerate(self.describe_fight(fight)):
+                          print(f"  {len(options)}) {line}" if i == 0 else f"     {line}")
+                  for nd in locs:
+                      options.append(("loc", nd))
+                      for i, line in enumerate(self.describe_location(nd)):
+                          print(f"  {len(options)}) {line}" if i == 0 else f"     {line}")
+                  self.show_state()
 
-                (self.do_fight if kind == "fight" else self.do_location)(sess, nd)
+                  if self.args.auto:
+                      kind, nd = options[0]
+                  else:
+                      while True:
+                          pk = input(f"\n  Choose [1-{len(options)}], (s)ummary, "
+                                     f"(l)evel, (e)volve, (a)rrange, (h)eal, "
+                                     f"(q)uit: ").strip().lower()
+                          if pk in ("s", "summary"):
+                              self.summary(sess)
+                              continue
+                          if pk in ("l", "level"):
+                              self.level_to_cap(sess, nodes)
+                              continue
+                          if pk in ("e", "evolve"):
+                              self.evolve_all(sess)
+                              continue
+                          if pk in ("a", "arrange"):
+                              self.arrange(sess)
+                              continue
+                          if pk in ("h", "heal"):
+                              sess.run(S.HCMD_HEAL)
+                              print("  party healed (HP, status and PP)")
+                              continue
+                          if pk in ("q", "quit"):
+                              raise SystemExit("stopped")
+                          if pk.isdigit() and 1 <= int(pk) <= len(options):
+                              kind, nd = options[int(pk) - 1]
+                              break
 
-            print(f"\n{'=' * 68}")
-            print(" Slice complete.")
-            self.show_state()
-            self.led.close(sess.frame, "slice complete")
-            print(f"\n Ledger written to {self.args.ledger}")
+                  (self.do_fight if kind == "fight" else self.do_location)(sess, nd)
+
+              print(f"\n{'=' * 68}")
+              print(" Slice complete.")
+              self.show_state()
+              self.led.close(sess.frame, "slice complete")
+              print(f"\n Ledger written to {self.args.ledger}")
+
+        finally:
+            if self.args.video:
+                self.encode(shots)
         return 0
+
+    def encode(self, shots):
+        frames = sorted(shots.glob("*.png")) if shots and shots.exists() else []
+        if not frames:
+            print(" no frames captured", file=sys.stderr)
+            return
+        fps = max(1, round(60 / self.args.every))
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(fps),
+                        "-i", str(shots / "%06d.png"),
+                        "-vf", "scale=480:320:flags=neighbor",
+                        "-pix_fmt", "yuv420p", str(self.args.video)], check=True)
+        print(f" Video written to {self.args.video} "
+              f"({len(frames)} frames at {fps}fps)")
 
 
 def main():
@@ -775,6 +842,10 @@ def main():
                     help="take the first option everywhere, for smoke testing")
     ap.add_argument("--attempt", type=int, default=1,
                     help="attempt number, recorded in the ledger header")
+    ap.add_argument("--video", type=pathlib.Path,
+                    help="record the run to video as it is played")
+    ap.add_argument("--every", type=int, default=2,
+                    help="capture one frame in N when recording (default 2, ~30fps)")
     ap.add_argument("--ledger", type=pathlib.Path,
                     default=pathlib.Path("runs/attempt.jsonl"),
                     help="append-only run ledger (§11)")

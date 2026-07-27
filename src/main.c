@@ -241,6 +241,18 @@ void EnableVCountIntrAtLine150(void)
 #ifdef BUGFIX
 static void SeedRngWithRtc(void)
 {
+#if HARNESS_ENABLED
+    // The RNG is seeded from the real-time clock at boot, so the new-game
+    // sequence -- trainer id, and anything else generated before the harness can
+    // act -- differs on every run. HCMD_SET_SEED comes too late to help: by then
+    // that state already exists, and it is enough to make the same decisions
+    // produce a different battle.
+    //
+    // A fixed boot seed makes everything from power-on reproducible. The harness
+    // still re-seeds explicitly afterwards, which is what the ledger records.
+    SeedRng(HARNESS_BOOT_SEED);
+    return;
+#endif
     #define BCD8(x) ((((x) >> 4) & 0xF) * 10 + ((x) & 0xF))
     u32 seconds;
     struct SiiRtcInfo rtc;

@@ -32,4 +32,9 @@
 // Enforced in BattleBeginFirstTurn (src/battle_main.c).
 #define HARNESS_FORCE_BATTLE_STYLE_SET  TRUE
 
+// Replaces the RTC-derived boot seed (SeedRngWithRtc, src/main.c). Any value
+// works; it only has to be the same every run, so that state created before the
+// harness can issue set_seed is reproducible too.
+#define HARNESS_BOOT_SEED               0x20040921
+
 #endif // GUARD_CONFIG_HARNESS_H

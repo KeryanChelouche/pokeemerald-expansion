@@ -33,13 +33,17 @@ HCMD_WARP, HCMD_TRAINER_BATTLE, HCMD_ROLL_ENCOUNTER = 1, 2, 3
 HCMD_HEAL, HCMD_SET_LEVEL = 5, 6
 HCMD_TEACH_MOVE, HCMD_EVOLVE, HCMD_PARTY_ARRANGE = 7, 8, 10
 HCMD_RELEASE, HCMD_SET_FLAG, HCMD_DUMP_STATE, HCMD_SET_PARTY = 11, 12, 13, 14
-HCMD_SET_SEED, HCMD_DECISION, HCMD_SET_NICKNAME = 15, 16, 17
+HCMD_SET_SEED, HCMD_DECISION, HCMD_SET_NICKNAME, HCMD_SET_PLAYER = 15, 16, 17, 18
 HSTAT_IDLE, HSTAT_DECISION_PENDING, HSTAT_ERROR = 0, 2, 3
 
 SYSTEM_FLAGS = 0x860
 BADGE_FLAGS = [SYSTEM_FLAGS + 0x7 + i for i in range(8)]
 
 TEXTLOG_SIZE = 4096
+# Busy-wait iterations before the emulator gives up waiting for the driver.
+# Large enough for a human to think, small enough that a dead driver does not
+# leave a core spinning forever.
+SPIN_LIMIT = 200_000_000
 PAYLOAD_SIZE = 2048
 OFF_PAYLOAD_OUT = 12 + PAYLOAD_SIZE
 
@@ -51,9 +55,35 @@ local TSIZE = {tsize}
 local DIR = "{dir}"
 local READY_FLAG = {ready}
 
+local shotDir = "{shots}"
+local shotEvery = {every}
+local shot = 0
+
 local n, booted = 0, false
 local cmdN, busy, answered, inBattleCmd, appliedAt = 1, false, 0, false, 0
 local reqN, awaiting, lastW = 0, false, 0
+
+-- Freeze the emulator until a file appears.
+--
+-- Blocking inside the frame callback stops the emulator advancing, because the
+-- frame does not complete until this returns. That is what makes a run
+-- reproducible: otherwise the emulator keeps running while Python thinks, the
+-- number of idle frames depends on wall-clock latency, and the overworld
+-- consumes RNG while it idles -- so the same decisions produce a different
+-- battle on a replay.
+--
+-- Gives up rather than spinning forever, so a dead driver does not leave an
+-- emulator burning a core indefinitely.
+local SPIN_LIMIT = {spin}
+local function waitFor(path)
+  local spins = 0
+  while true do
+    local f = io.open(path, "r")
+    if f then return f end
+    spins = spins + 1
+    if spins > SPIN_LIMIT then return nil end
+  end
+end
 
 local function writeAtomic(name, body)
   local f = io.open(DIR .. "/" .. name .. ".tmp", "w")
@@ -99,6 +129,14 @@ callbacks:add("frame", function()
     return
   end
   if not booted then return end
+
+  -- Capture the emulator's own output. Frames are only produced while the game
+  -- is actually running -- the driver freezes it between commands -- so a
+  -- recording contains the run and none of the waiting.
+  if shotEvery > 0 and (n % shotEvery) == 0 then
+    shot = shot + 1
+    emu:screenshot(string.format("%s/%06d.png", shotDir, shot))
+  end
 
   -- Press A only while a battle is resolving, to advance its messages. On the
   -- overworld A interacts with whatever the player is facing, and pressing it
@@ -151,7 +189,9 @@ callbacks:add("frame", function()
     return
   end
 
-  local cf = io.open(DIR .. "/cmd_" .. cmdN, "r")
+  -- Frozen here too: no frames pass between one command completing and the next
+  -- arriving, so the timeline does not depend on how fast the driver is.
+  local cf = waitFor(DIR .. "/cmd_" .. cmdN)
   if cf then
     local line = cf:read("l"); cf:close()
     local id, hex = line:match("^(%d+)%s*(%x*)$")
@@ -179,8 +219,12 @@ class Session:
     """Owns the emulator process and the command/reply directory."""
 
     def __init__(self, mgba: pathlib.Path, rom: pathlib.Path, symbols: pathlib.Path,
-                 timeout: float = 120.0):
+                 timeout: float = 120.0, shots: pathlib.Path | None = None,
+                 every: int = 0):
         self.mgba, self.rom, self.timeout = mgba, rom, timeout
+        self.shots, self.every = shots, every
+        if shots is not None:
+            shots.mkdir(parents=True, exist_ok=True)
         syms = json.loads(symbols.read_text())["symbols"]
         for name in ("gHarnessMailbox", "gHarnessTextLog"):
             if name not in syms:
@@ -204,8 +248,9 @@ class Session:
     def start(self) -> None:
         (self.dir / "play.lua").write_text(self.extra_lua + LUA.format(
             base=self.base, off_out=OFF_PAYLOAD_OUT, tlog=self.tlog,
-            tsize=TEXTLOG_SIZE, dir=self.dir, c_dec=HCMD_DECISION,
+            tsize=TEXTLOG_SIZE, dir=self.dir, c_dec=HCMD_DECISION, spin=SPIN_LIMIT,
             pending=HSTAT_DECISION_PENDING, ready=self.ready,
+            shots=(self.shots or "/tmp"), every=self.every,
             c_battle=HCMD_TRAINER_BATTLE, c_enc=HCMD_ROLL_ENCOUNTER))
         env = dict(os.environ)
         env["LD_LIBRARY_PATH"] = (f"{self.mgba.resolve().parent}:"

@@ -492,6 +492,33 @@ static void Harness_Release(void)
 // full. SetMonMoveSlot writes the move and its PP together; RemoveMonPPBonus
 // clears the PP-up bonus belonging to the move being discarded, which is what
 // the party menu does and is easy to forget on a hand-rolled version.
+// Gender is not cosmetic in Emerald: it decides which rival you face, so the
+// campaign resolves the rival's trainer id from it.
+static void Harness_SetPlayer(void)
+{
+    const struct HarnessPlayerArg *arg =
+        (const struct HarnessPlayerArg *)gHarnessMailbox.payloadIn;
+    u32 i;
+
+    if (gHarnessMailbox.payloadInLen < sizeof(*arg))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+    if (arg->name[0] == EOS)
+    {
+        Harness_Fail(HERR_EMPTY_NICKNAME);
+        return;
+    }
+
+    gSaveBlock2Ptr->playerGender = (arg->gender == FEMALE) ? FEMALE : MALE;
+    for (i = 0; i < PLAYER_NAME_LENGTH + 1; i++)
+        gSaveBlock2Ptr->playerName[i] = arg->name[i];
+    gSaveBlock2Ptr->playerName[PLAYER_NAME_LENGTH] = EOS;
+
+    Harness_Ok(0);
+}
+
 static void Harness_TeachMove(void)
 {
     const struct HarnessTeachMoveArg *arg =
@@ -801,6 +828,9 @@ void Task_HarnessDispatch(u8 taskId)
         break;
     case HCMD_SET_NICKNAME:
         Harness_SetNickname();
+        break;
+    case HCMD_SET_PLAYER:
+        Harness_SetPlayer();
         break;
     case HCMD_DUMP_STATE:
         Harness_DumpState();

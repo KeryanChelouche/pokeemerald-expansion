@@ -43,6 +43,7 @@ enum HarnessCommand
     HCMD_SET_SEED,
     HCMD_DECISION,              // reply to a decision request
     HCMD_SET_NICKNAME,          // R5: every caught Pokemon must be named
+    HCMD_SET_PLAYER,            // trainer name and gender: identity per attempt
     HCMD_COUNT,
 };
 
@@ -237,6 +238,19 @@ struct HarnessLearnable
     u32 pendingCount;
     u16 learned[HARNESS_MAX_LEARNABLE];
     u16 pending[HARNESS_MAX_LEARNABLE];
+};
+
+// HCMD_SET_PLAYER payload.
+//
+// The trainer's name and gender belong to the attempt, not the build: §11 keys a
+// ledger partly on trainer_name, and a run reads differently when the trainer is
+// someone rather than a default. Applied as a command after boot rather than
+// baked into config, so the choice is recorded and replayable.
+struct HarnessPlayerArg
+{
+    u8 gender;                              // MALE or FEMALE
+    u8 padding[3];
+    u8 name[PLAYER_NAME_LENGTH + 1];
 };
 
 // HCMD_TEACH_MOVE payload. `forgetSlot` is ignored unless all four move slots

@@ -25,9 +25,10 @@
 
 - id: rival_route_103
   kind: trainer_battle
-  # Resolved from the chosen starter: the rival's team counters yours, so the
-  # trainer id differs per starter. The driver substitutes {starter}.
-  trainer: TRAINER_MAY_ROUTE_103_{starter}
+  # Two substitutions. The rival's team counters your starter, so the id differs
+  # per starter; and which rival you face depends on your gender, exactly as in
+  # the real game -- a male trainer is rivals with May, a female one with Brendan.
+  trainer: TRAINER_{rival}_ROUTE_103_{starter}
   battle_kind: single
   map: MAP_ROUTE103
   mandatory: true
