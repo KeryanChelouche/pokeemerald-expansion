@@ -56,6 +56,8 @@ enum HarnessError
     HERR_WARP_FAILED,           // the warp was dropped and did not take after retries
     HERR_EMPTY_NICKNAME,        // R5 rejects an empty name; the referee must supply one
     HERR_BAD_SLOT,              // party slot out of range or empty
+    HERR_NOT_ELIGIBLE,          // nothing to evolve into right now
+    HERR_BAD_ORDER,             // party_arrange order is not a permutation
 };
 
 // Field offsets are part of the wire contract. Do not reorder without
@@ -234,6 +236,24 @@ struct HarnessLearnable
     u32 pendingCount;
     u16 learned[HARNESS_MAX_LEARNABLE];
     u16 pending[HARNESS_MAX_LEARNABLE];
+};
+
+// HCMD_TEACH_MOVE payload. `forgetSlot` is ignored unless all four move slots
+// are full, which is the only case the engine cannot resolve on its own.
+struct HarnessTeachMoveArg
+{
+    u16 move;
+    u8  slot;
+    u8  forgetSlot;
+};
+
+// HCMD_PARTY_ARRANGE payload: the new order as party slot indices, so
+// {2,0,1} means "the mon currently in slot 2 leads".
+struct HarnessArrangeArg
+{
+    u8 count;
+    u8 order[PARTY_SIZE];
+    u8 padding;
 };
 
 // HCMD_SET_NICKNAME payload. The name is in ROM character encoding, EOS

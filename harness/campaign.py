@@ -37,6 +37,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # rod draws, and §7.2 requires them filtered out until the capability is granted.
 START_CAPABILITIES: set[str] = set()
 
+HERR_NOT_ELIGIBLE = 8      # enum HarnessError in include/harness.h
+
 OUTCOMES = {1: "won", 2: "lost", 3: "drew", 4: "ran", 6: "it fled", 7: "caught"}
 
 # The rival's team counters yours, so the starter chosen selects which rival
@@ -331,10 +333,7 @@ class Runner:
                 print(f"       learned: "
                       f"{', '.join(self.moves.get(m, f'#{m}') for m in learned)}")
             if pending:
-                # Four moves known, so each of these needs something forgotten.
-                print(f"       needs a slot freed: "
-                      f"{', '.join(self.moves.get(m, f'#{m}') for m in pending)}")
-                print(f"       (teach_move not implemented; these were declined)")
+                self.resolve_pending(sess, i, who, pending)
 
     def read_party(self, sess):
         """Live party from the ROM, rather than what Python believes it to be."""
@@ -374,6 +373,68 @@ class Runner:
             self.team = [(n, s) for n, s in self.team if n != mon["nick"]]
             print(f"   † {mon['nick']} ({mon['name']} Lv{mon['level']}) died at "
                   f"{where} — gone for good (R1)")
+
+    def resolve_pending(self, sess, slot, who, pending):
+        """A move only needs a decision when all four slots are full (§4.8)."""
+        out, _ = sess.run(S.HCMD_DUMP_STATE)
+        for mv in pending:
+            name = self.moves.get(mv, f"#{mv}")
+            if self.args.auto:
+                print(f"       declined {name} (auto)")
+                continue
+            print(f"       {who} can learn {name}, but knows four moves already.")
+            for j in range(4):
+                print(f"         {j + 1}) forget move slot {j + 1}")
+            print(f"         0) decline {name}")
+            while True:
+                pk = input(f"       Choose [0-4]: ").strip()
+                if pk.isdigit() and 0 <= int(pk) <= 4:
+                    break
+            if int(pk) == 0:
+                print(f"       declined {name}")
+                continue
+            sess.run(S.HCMD_TEACH_MOVE,
+                     struct.pack("<HBB", mv, slot, int(pk) - 1))
+            print(f"       {who} learned {name}")
+
+    def evolve_all(self, sess):
+        """§4.8: evolution never fires on its own, because levels are set directly."""
+        for mon in self.read_party(sess):
+            try:
+                out, _ = sess.run(S.HCMD_EVOLVE, struct.pack("<I", mon["slot"]))
+            except S.SessionError as e:
+                # Only "not eligible" is expected here. Swallowing every error
+                # would hide a hang or a bad slot as a Pokemon that simply is not
+                # ready, which is indistinguishable from working.
+                if f"error code {HERR_NOT_ELIGIBLE}" in str(e):
+                    continue
+                raise
+            new = struct.unpack_from("<H", out, 0)[0]
+            print(f"    {mon['nick']} evolved into "
+                  f"{self.species.get(new, f'#{new}')}!")
+
+    def arrange(self, sess):
+        party = self.read_party(sess)
+        if len(party) < 2:
+            print("  nothing to reorder")
+            return
+        print("\n  Current order:")
+        for m in party:
+            print(f"    {m['slot'] + 1}) {m['nick']} ({m['name']}) Lv{m['level']}")
+        raw = input("  New order as slot numbers, e.g. 2 1 3: ").split()
+        try:
+            order = [int(x) - 1 for x in raw]
+        except ValueError:
+            print("  not a list of slot numbers")
+            return
+        if sorted(order) != list(range(len(party))):
+            # Checked here as well as in the ROM: with R1 in force, dropping a
+            # Pokemon through a bad index looks exactly like a death.
+            print("  that is not a rearrangement of the current party")
+            return
+        payload = struct.pack("<B6Bx", len(order), *(order + [0] * (6 - len(order))))
+        sess.run(S.HCMD_PARTY_ARRANGE, payload)
+        print("  party rearranged")
 
     def summary(self, sess):
         """Full party detail between battles (§4.9 via HCMD_DUMP_STATE)."""
@@ -598,13 +659,19 @@ class Runner:
                 else:
                     while True:
                         pk = input(f"\n  Choose [1-{len(options)}], (s)ummary, "
-                                   f"(l)evel to cap, (h)eal, (q)uit: ")\
-                            .strip().lower()
+                                   f"(l)evel, (e)volve, (a)rrange, (h)eal, "
+                                   f"(q)uit: ").strip().lower()
                         if pk in ("s", "summary"):
                             self.summary(sess)
                             continue
                         if pk in ("l", "level"):
                             self.level_to_cap(sess, nodes)
+                            continue
+                        if pk in ("e", "evolve"):
+                            self.evolve_all(sess)
+                            continue
+                        if pk in ("a", "arrange"):
+                            self.arrange(sess)
                             continue
                         if pk in ("h", "heal"):
                             sess.run(S.HCMD_HEAL)

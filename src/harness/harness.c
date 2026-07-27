@@ -11,6 +11,7 @@
 #include "script.h"
 #include "pokemon.h"
 #include "pokemon_storage_system.h"
+#include "pokedex.h"
 #include "random.h"
 #include "wild_encounter.h"
 #include "script_pokemon_util.h"
@@ -487,6 +488,148 @@ static void Harness_Release(void)
     Harness_Ok(0);
 }
 
+// §4.8: applies a move the agent chose, replacing one if all four slots are
+// full. SetMonMoveSlot writes the move and its PP together; RemoveMonPPBonus
+// clears the PP-up bonus belonging to the move being discarded, which is what
+// the party menu does and is easy to forget on a hand-rolled version.
+static void Harness_TeachMove(void)
+{
+    const struct HarnessTeachMoveArg *arg =
+        (const struct HarnessTeachMoveArg *)gHarnessMailbox.payloadIn;
+    struct Pokemon *mon;
+    u32 i;
+
+    if (gHarnessMailbox.payloadInLen < sizeof(*arg))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+    if (arg->slot >= PARTY_SIZE
+     || GetMonData(&gParties[B_TRAINER_PLAYER][arg->slot], MON_DATA_SPECIES_OR_EGG) == SPECIES_NONE)
+    {
+        Harness_Fail(HERR_BAD_SLOT);
+        return;
+    }
+
+    mon = &gParties[B_TRAINER_PLAYER][arg->slot];
+
+    // A free slot needs no decision, so let the engine place it as it would on
+    // a natural level-up.
+    for (i = 0; i < MAX_MON_MOVES; i++)
+    {
+        if (GetMonData(mon, MON_DATA_MOVE1 + i) == MOVE_NONE)
+        {
+            GiveMoveToMon(mon, arg->move);
+            Harness_Ok(0);
+            return;
+        }
+    }
+
+    if (arg->forgetSlot >= MAX_MON_MOVES)
+    {
+        Harness_Fail(HERR_BAD_SLOT);
+        return;
+    }
+
+    RemoveMonPPBonus(mon, arg->forgetSlot);
+    SetMonMoveSlot(mon, arg->move, arg->forgetSlot);
+    Harness_Ok(0);
+}
+
+// §4.8: evolution must be explicit, because setting levels directly never
+// triggers it. Eligibility is asked of GetEvolutionTargetSpecies rather than
+// worked out here -- it knows about levels, items, friendship, held items and
+// the personality split that decides Silcoon from Cascoon.
+//
+// The apply sequence mirrors the evolution scene (src/evolution_scene.c): species,
+// clear the evolution tracker, recalculate stats, rename if the nickname was the
+// old species name, and register the new species in the dex.
+static void Harness_Evolve(void)
+{
+    const struct HarnessSetLevelArg *arg =
+        (const struct HarnessSetLevelArg *)gHarnessMailbox.payloadIn;   // slot only
+    struct Pokemon *mon;
+    enum Species before, target;
+    u32 zero = 0;
+
+    if (gHarnessMailbox.payloadInLen < sizeof(u32))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+    if (arg->slot >= PARTY_SIZE
+     || GetMonData(&gParties[B_TRAINER_PLAYER][arg->slot], MON_DATA_SPECIES_OR_EGG) == SPECIES_NONE)
+    {
+        Harness_Fail(HERR_BAD_SLOT);
+        return;
+    }
+
+    mon = &gParties[B_TRAINER_PLAYER][arg->slot];
+    before = GetMonData(mon, MON_DATA_SPECIES);
+    target = GetEvolutionTargetSpecies(mon, EVO_MODE_NORMAL, ITEM_NONE, NULL, NULL, CHECK_EVO);
+
+    if (target == SPECIES_NONE)
+    {
+        Harness_Fail(HERR_NOT_ELIGIBLE);
+        return;
+    }
+
+    SetMonData(mon, MON_DATA_SPECIES, &target);
+    SetMonData(mon, MON_DATA_EVOLUTION_TRACKER, &zero);
+    CalculateMonStats(mon);
+    EvolutionRenameMon(mon, before, target);
+    GetSetPokedexFlag(SpeciesToNationalPokedexNum(target), FLAG_SET_SEEN);
+    GetSetPokedexFlag(SpeciesToNationalPokedexNum(target), FLAG_SET_CAUGHT);
+
+    gHarnessMailbox.payloadOut[0] = target & 0xFF;
+    gHarnessMailbox.payloadOut[1] = target >> 8;
+    Harness_Ok(2);
+}
+
+// Reorders the party. Rejects anything that is not a permutation of the living
+// party, so a malformed order cannot duplicate or silently drop a Pokemon --
+// with R1 in force, losing one to a bad index would be indistinguishable from a
+// death.
+static void Harness_PartyArrange(void)
+{
+    const struct HarnessArrangeArg *arg =
+        (const struct HarnessArrangeArg *)gHarnessMailbox.payloadIn;
+    struct Pokemon *party = gParties[B_TRAINER_PLAYER];
+    struct Pokemon reordered[PARTY_SIZE];
+    u32 seen = 0;
+    u32 count, i;
+
+    if (gHarnessMailbox.payloadInLen < sizeof(*arg))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+
+    count = gPartiesCount[B_TRAINER_PLAYER];
+    if (arg->count != count)
+    {
+        Harness_Fail(HERR_BAD_ORDER);
+        return;
+    }
+
+    for (i = 0; i < count; i++)
+    {
+        if (arg->order[i] >= count || (seen & (1u << arg->order[i])))
+        {
+            Harness_Fail(HERR_BAD_ORDER);
+            return;
+        }
+        seen |= 1u << arg->order[i];
+    }
+
+    for (i = 0; i < count; i++)
+        reordered[i] = party[arg->order[i]];
+    for (i = 0; i < count; i++)
+        party[i] = reordered[i];
+
+    Harness_Ok(0);
+}
+
 static void Harness_SetNickname(void)
 {
     const struct HarnessNicknameArg *arg =
@@ -668,6 +811,15 @@ void Task_HarnessDispatch(u8 taskId)
     case HCMD_RELEASE:
         Harness_Release();
         break;
+    case HCMD_TEACH_MOVE:
+        Harness_TeachMove();
+        break;
+    case HCMD_EVOLVE:
+        Harness_Evolve();
+        break;
+    case HCMD_PARTY_ARRANGE:
+        Harness_PartyArrange();
+        break;
     case HCMD_ROLL_ENCOUNTER:
         // Asynchronous like trainer_battle: finished by the sBattlePending
         // branch once the encounter battle ends.
@@ -689,10 +841,7 @@ void Task_HarnessDispatch(u8 taskId)
             return;
         break;
     case HCMD_ATTEMPT_CATCH:
-    case HCMD_TEACH_MOVE:
-    case HCMD_EVOLVE:
     case HCMD_GIVE_ITEM:
-    case HCMD_PARTY_ARRANGE:
     case HCMD_DECISION:
         Harness_Fail(HERR_NOT_IMPLEMENTED);
         break;
