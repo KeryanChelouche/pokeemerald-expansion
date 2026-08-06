@@ -1,0 +1,1443 @@
+==============================================================================
+EMERALD NUZLOCKE -- FULL CAMPAIGN ROUTE (FIRST DRAFT)
+==============================================================================
+
+Trainers, encounters and items are extracted from the decomp itself
+(tools/campaign_extract.py), so they are the game's own data, not a
+guide's transcription. The ORDER and the GATES are written by hand and
+are where the uncertainty lives -- see the end of this file.
+
+This is normal playthrough order, not speedrun order: the reference
+sheet reaches Wattson, Mt. Chimney and Flannery before Brawly, which a
+badge-ordered nuzlocke cannot do.
+
+Legend:  [M] mandatory plot fight   [o] optional trainer
+         Encounters list one line per method, deduped, with level range.
+
+------------------------------------------------------------------------------
+Littleroot Town
+  gate: (open from the start)
+  note: Starter chosen here. The tutorial Zigzagoon battle is skipped by the har
+        ness (set_party injects the team; see spec-deltas).
+  (no trainers, encounters or items)
+
+------------------------------------------------------------------------------
+Route 101
+  gate: (open from the start)
+  encounters (ROUTE101):
+    grass       WURMPLE L2-2, POOCHYENA L2-2, ZIGZAGOON L2-2
+
+------------------------------------------------------------------------------
+Oldale Town
+  gate: (open from the start)
+  note: No encounters. Shop opens.
+  (no trainers, encounters or items)
+
+------------------------------------------------------------------------------
+Route 103
+  gate: (open from the start)
+  note: Rival waits here. The encounter does not require beating them.
+  trainers (ROUTE103):
+    [M] TRAINER_MAY_ROUTE_103_TREECKO
+    [M] TRAINER_MAY_ROUTE_103_TORCHIC
+    [M] TRAINER_MAY_ROUTE_103_MUDKIP
+    [M] TRAINER_BRENDAN_ROUTE_103_TREECKO
+    [M] TRAINER_BRENDAN_ROUTE_103_TORCHIC
+    [M] TRAINER_BRENDAN_ROUTE_103_MUDKIP
+    [o] TRAINER_DAISY
+    [o] TRAINER_AMY_AND_LIV_1  (DOUBLE)
+    [o] TRAINER_ANDREW
+    [o] TRAINER_MIGUEL_1
+    [o] TRAINER_MARCOS
+    [o] TRAINER_RHETT
+    [o] TRAINER_PETE
+    [o] TRAINER_ISABELLE
+  encounters (ROUTE103):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+    grass       POOCHYENA L2-2, WINGULL L2-2, ZIGZAGOON L3-3
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE103):
+    ball       GUARD_SPEC, PP_UP
+
+------------------------------------------------------------------------------
+Route 102
+  gate: rival_route_103
+  trainers (ROUTE102):
+    [o] TRAINER_CALVIN_1
+    [o] TRAINER_RICK
+    [o] TRAINER_TIANA
+    [o] TRAINER_ALLEN
+  encounters (ROUTE102):
+    fishing     MAGIKARP L5-10, GOLDEEN L5-10, CORPHISH L10-30
+    grass       POOCHYENA L3-3, WURMPLE L3-3, LOTAD L3-3, ZIGZAGOON L3-3, RALTS L4-4, SEEDOT L3-3
+    surf        MARILL L20-30, GOLDEEN L20-30
+  items (ROUTE102):
+    ball       POTION
+
+------------------------------------------------------------------------------
+Petalburg City
+  gate: rival_route_103
+  note: Norman refuses the gym until four badges (Emerald). Wally tutorial is a 
+        scripted catch, not a battle.
+  encounters (PETALBURG_CITY):
+    fishing     MAGIKARP L5-10, GOLDEEN L5-10, CORPHISH L10-30
+    surf        MARILL L20-30
+  items (PETALBURG_CITY):
+    ball       MAX_REVIVE, ETHER
+    hidden     RARE_CANDY
+
+------------------------------------------------------------------------------
+Route 104 (south)
+  gate: rival_route_103
+  note: UNSURE: Route 104 is one map for north and south halves. The southern ha
+        lf is reachable before Petalburg Woods, the northern half after. Split b
+        y hand if the encounter should differ.
+  trainers (ROUTE104):
+    [M] TRAINER_MAY_RUSTBORO_TREECKO
+    [M] TRAINER_MAY_RUSTBORO_TORCHIC
+    [M] TRAINER_MAY_RUSTBORO_MUDKIP
+    [M] TRAINER_BRENDAN_RUSTBORO_TREECKO
+    [M] TRAINER_BRENDAN_RUSTBORO_TORCHIC
+    [M] TRAINER_BRENDAN_RUSTBORO_MUDKIP
+    [o] TRAINER_IVAN
+    [o] TRAINER_BILLY
+    [o] TRAINER_HALEY_1
+    [o] TRAINER_WINSTON_1
+    [o] TRAINER_CINDY_1
+    [o] TRAINER_GINA_AND_MIA_1  (DOUBLE)
+    [o] TRAINER_DARIAN
+  encounters (ROUTE104):
+    fishing     MAGIKARP L5-10
+    grass       POOCHYENA L4-4, WURMPLE L4-4, MARILL L5-5, TAILLOW L4-4, WINGULL L4-4
+    surf        WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE104):
+    ball       PP_UP, POKE_BALL, X_ACCURACY, POTION
+    hidden     SUPER_POTION, POKE_BALL, POTION, ANTIDOTE, HEART_SCALE
+
+------------------------------------------------------------------------------
+Petalburg Woods
+  gate: route_104_reached
+  note: Aqua Grunt here is mandatory (plot: Devon researcher).
+  trainers (PETALBURG_WOODS):
+    [M] TRAINER_GRUNT_PETALBURG_WOODS
+    [o] TRAINER_LYLE
+    [o] TRAINER_JAMES_1
+  encounters (PETALBURG_WOODS):
+    grass       POOCHYENA L5-5, WURMPLE L5-5, SHROOMISH L5-5, SILCOON L5-5, CASCOON L5-5, TAILLOW L5-5, SLAKOTH L5-5
+  items (PETALBURG_WOODS):
+    ball       GREAT_BALL, X_ATTACK, ETHER, PARALYZE_HEAL
+    hidden     POTION, TINY_MUSHROOM, TINY_MUSHROOM, POKE_BALL
+
+------------------------------------------------------------------------------
+Rustboro City
+  gate: aqua_petalburg_woods
+  items (RUSTBORO_CITY):
+    ball       X_DEFEND
+
+------------------------------------------------------------------------------
+Rustboro Gym   >>> STONE BADGE <<<
+  gate: aqua_petalburg_woods
+  note: GYM 1 -- Roxanne. Gives TM39 Rock Tomb.
+  trainers (RUSTBORO_CITY_GYM):
+    [M] TRAINER_ROXANNE_1
+    [o] TRAINER_JOSH
+    [o] TRAINER_TOMMY
+    [o] TRAINER_MARC
+
+------------------------------------------------------------------------------
+Route 116
+  gate: gym_roxanne
+  trainers (ROUTE116):
+    [o] TRAINER_JOEY
+    [o] TRAINER_JOSE
+    [o] TRAINER_JERRY_1
+    [o] TRAINER_CLARK
+    [o] TRAINER_JANICE
+    [o] TRAINER_KAREN_1
+    [o] TRAINER_SARAH
+    [o] TRAINER_DAWSON
+    [o] TRAINER_DEVAN
+    [o] TRAINER_JOHNSON
+  encounters (ROUTE116):
+    grass       POOCHYENA L6-6, WHISMUR L6-6, NINCADA L6-6, ABRA L7-7, TAILLOW L6-6, SKITTY L7-7
+  items (ROUTE116):
+    ball       ETHER, REPEL, HP_UP, X_SPECIAL, POTION
+    hidden     SUPER_POTION, BLACK_GLASSES
+
+------------------------------------------------------------------------------
+Rusturf Tunnel
+  gate: gym_roxanne
+  note: Aqua Grunt with the stolen Devon Goods -- mandatory plot fight.
+  trainers (RUSTURF_TUNNEL):
+    [M] TRAINER_GRUNT_RUSTURF_TUNNEL
+    [o] TRAINER_MIKE_2
+  encounters (RUSTURF_TUNNEL):
+    grass       WHISMUR L6-6
+  items (RUSTURF_TUNNEL):
+    ball       POKE_BALL, MAX_ETHER
+
+------------------------------------------------------------------------------
+Rustboro City (rival 2)
+  gate: rusturf_grunt
+  note: UNSURE: the second rival fight triggers outside Rustboro after returning
+         the Devon Goods. Listed as its own stop because it gates the boat.
+  items (RUSTBORO_CITY):
+    ball       X_DEFEND
+
+------------------------------------------------------------------------------
+Route 105
+  gate: gym_brawly
+  note: Requires Surf -- listed here only for completeness; reachable later.
+  trainers (ROUTE105):
+    [o] TRAINER_FOSTER
+    [o] TRAINER_LUIS
+    [o] TRAINER_DOMINIK
+    [o] TRAINER_BEVERLY
+    [o] TRAINER_IMANI
+    [o] TRAINER_JOSUE
+    [o] TRAINER_ANDRES_1
+  encounters (ROUTE105):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE105):
+    ball       IRON
+    hidden     HEART_SCALE, BIG_PEARL
+
+------------------------------------------------------------------------------
+Route 106
+  gate: rival_rustboro
+  note: Reached by Mr Briney's boat.
+  trainers (ROUTE106):
+    [o] TRAINER_DOUGLAS
+    [o] TRAINER_KYLA
+    [o] TRAINER_ELLIOT_1
+    [o] TRAINER_NED
+  encounters (ROUTE106):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE106):
+    ball       PROTEIN
+    hidden     POKE_BALL, STARDUST, HEART_SCALE
+
+------------------------------------------------------------------------------
+Granite Cave
+  gate: rival_rustboro
+  note: Steven gives TM47 Steel Wing. B1F/B2F need Flash for full access.
+  encounters (GRANITE_CAVE_1F):
+    grass       ZUBAT L7-7, MAKUHITA L8-8, ABRA L8-8, GEODUDE L7-7
+  items (GRANITE_CAVE_1F):
+    ball       ESCAPE_ROPE
+  encounters (GRANITE_CAVE_B1F):
+    grass       ZUBAT L9-9, ARON L10-10, ABRA L9-9, MAKUHITA L10-10, SABLEYE L10-10
+  items (GRANITE_CAVE_B1F):
+    ball       POKE_BALL
+  encounters (GRANITE_CAVE_B2F):
+    grass       ZUBAT L10-10, ARON L11-11, ABRA L10-10, SABLEYE L10-10
+    rock_smash  GEODUDE L10-15, NOSEPASS L10-20
+  items (GRANITE_CAVE_B2F):
+    ball       REPEL, RARE_CANDY
+    hidden     EVERSTONE, EVERSTONE
+  encounters (GRANITE_CAVE_STEVENS_ROOM):
+    grass       ZUBAT L7-7, MAKUHITA L8-8, ABRA L8-8, ARON L7-7
+
+------------------------------------------------------------------------------
+Dewford Town
+  gate: rival_rustboro
+  encounters (DEWFORD_TOWN):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+
+------------------------------------------------------------------------------
+Dewford Gym   >>> KNUCKLE BADGE <<<
+  gate: rival_rustboro
+  note: GYM 2 -- Brawly. Gives TM08 Bulk Up.
+  trainers (DEWFORD_TOWN_GYM):
+    [M] TRAINER_BRAWLY_1
+    [o] TRAINER_TAKAO
+    [o] TRAINER_JOCELYN
+    [o] TRAINER_LAURA
+    [o] TRAINER_BRENDEN
+    [o] TRAINER_CRISTIAN
+    [o] TRAINER_LILITH
+
+------------------------------------------------------------------------------
+Route 107
+  gate: gym_brawly
+  note: Water route; Surf/boat.
+  trainers (ROUTE107):
+    [o] TRAINER_DARRIN
+    [o] TRAINER_TONY_1
+    [o] TRAINER_DENISE
+    [o] TRAINER_BETH
+    [o] TRAINER_LISA_AND_RAY  (DOUBLE)
+    [o] TRAINER_CAMRON
+  encounters (ROUTE107):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+
+------------------------------------------------------------------------------
+Route 108
+  gate: gym_brawly
+  trainers (ROUTE108):
+    [o] TRAINER_JEROME
+    [M] TRAINER_MATTHEW
+    [o] TRAINER_TARA
+    [o] TRAINER_MISSY
+    [o] TRAINER_CAROLINA
+    [o] TRAINER_CORY_1
+  encounters (ROUTE108):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE108):
+    ball       STAR_PIECE
+    hidden     RARE_CANDY
+
+------------------------------------------------------------------------------
+Abandoned Ship
+  gate: gym_brawly
+  note: Optional. Needs Surf and Dive for the full interior.
+  trainers (ABANDONED_SHIP_ROOMS_1F):
+    [o] TRAINER_DEMETRIUS
+    [o] TRAINER_THALIA_1
+  items (ABANDONED_SHIP_ROOMS_1F):
+    ball       HARBOR_MAIL
+  encounters (ABANDONED_SHIP_ROOMS_B1F):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, TENTACRUEL L30-35
+    surf        TENTACOOL L5-35, TENTACRUEL L30-35
+  items (ABANDONED_SHIP_ROOMS_B1F):
+    ball       ESCAPE_ROPE
+  items (ABANDONED_SHIP_ROOMS2_B1F):
+    ball       DIVE_BALL
+  items (ABANDONED_SHIP_ROOM_B1F):
+    ball       TM_ICE_BEAM
+  trainers (ABANDONED_SHIP_ROOMS2_1F):
+    [o] TRAINER_KIRA_AND_DAN_1  (DOUBLE)
+    [o] TRAINER_JANI
+    [o] TRAINER_GARRISON
+  items (ABANDONED_SHIP_ROOMS2_1F):
+    ball       REVIVE
+  trainers (ABANDONED_SHIP_CORRIDORS_1F):
+    [o] TRAINER_CHARLIE
+  trainers (ABANDONED_SHIP_CORRIDORS_B1F):
+    [o] TRAINER_DUNCAN
+  (no trainers, encounters or items)
+
+------------------------------------------------------------------------------
+Route 109
+  gate: gym_brawly
+  trainers (ROUTE109):
+    [o] TRAINER_DAVID
+    [o] TRAINER_ALICE
+    [o] TRAINER_HUEY
+    [o] TRAINER_EDMOND
+    [o] TRAINER_RICKY_1
+    [o] TRAINER_LOLA_1
+    [o] TRAINER_AUSTINA
+    [o] TRAINER_GWEN
+    [o] TRAINER_CARTER
+    [o] TRAINER_MEL_AND_PAUL  (DOUBLE)
+    [o] TRAINER_CHANDLER
+    [o] TRAINER_HAILEY
+    [o] TRAINER_ELIJAH
+  encounters (ROUTE109):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE109):
+    ball       PP_UP, POTION
+    hidden     REVIVE, HEART_SCALE, GREAT_BALL, ETHER, HEART_SCALE, HEART_SCALE
+
+------------------------------------------------------------------------------
+Slateport City
+  gate: gym_brawly
+  note: Museum Aqua Grunts are mandatory plot fights.
+  encounters (SLATEPORT_CITY):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+
+------------------------------------------------------------------------------
+Route 110
+  gate: slateport_museum
+  note: Rival 3 fights here. Trick House sits on this route.
+  trainers (ROUTE110):
+    [o] TRAINER_EDWARD
+    [o] TRAINER_JACLYN
+    [o] TRAINER_EDWIN_1
+    [o] TRAINER_DALE
+    [o] TRAINER_JACOB
+    [o] TRAINER_ANTHONY
+    [o] TRAINER_BENJAMIN_1
+    [o] TRAINER_JASMINE
+    [o] TRAINER_ABIGAIL_1
+    [o] TRAINER_ISABEL_1
+    [o] TRAINER_TIMMY
+    [o] TRAINER_KALEB
+    [o] TRAINER_JOSEPH
+    [o] TRAINER_ALYSSA
+    [M] TRAINER_MAY_ROUTE_110_TREECKO
+    [M] TRAINER_MAY_ROUTE_110_TORCHIC
+    [M] TRAINER_MAY_ROUTE_110_MUDKIP
+    [M] TRAINER_BRENDAN_ROUTE_110_TREECKO
+    [M] TRAINER_BRENDAN_ROUTE_110_TORCHIC
+    [M] TRAINER_BRENDAN_ROUTE_110_MUDKIP
+  encounters (ROUTE110):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+    grass       POOCHYENA L12-12, ELECTRIKE L12-12, GULPIN L12-12, MINUN L13-13, ODDISH L13-13, WINGULL L12-12, PLUSLE L12-12
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE110):
+    ball       DIRE_HIT, RARE_CANDY, ELIXIR
+    hidden     REVIVE, GREAT_BALL, POKE_BALL, FULL_HEAL
+
+------------------------------------------------------------------------------
+Mauville City
+  gate: rival_route_110
+  note: Wally battles here (PKMN Trainer Wally).
+  trainers (MAUVILLE_CITY):
+    [M] TRAINER_WALLY_MAUVILLE
+  items (MAUVILLE_CITY):
+    ball       X_SPEED
+
+------------------------------------------------------------------------------
+Mauville Gym   >>> DYNAMO BADGE <<<
+  gate: rival_route_110
+  note: GYM 3 -- Wattson. Gives TM34 Shock Wave.
+  trainers (MAUVILLE_CITY_GYM):
+    [M] TRAINER_WATTSON_1
+    [o] TRAINER_KIRK
+    [o] TRAINER_SHAWN
+    [o] TRAINER_BEN
+    [o] TRAINER_VIVIAN
+    [o] TRAINER_ANGELO
+
+------------------------------------------------------------------------------
+Route 117
+  gate: gym_wattson
+  note: Day care route.
+  trainers (ROUTE117):
+    [o] TRAINER_ISAAC_1
+    [o] TRAINER_LYDIA_1
+    [o] TRAINER_DYLAN_1
+    [o] TRAINER_MARIA_1
+    [o] TRAINER_DEREK
+    [o] TRAINER_ANNA_AND_MEG_1  (DOUBLE)
+    [o] TRAINER_MELINA
+    [o] TRAINER_BRANDI
+    [o] TRAINER_AISHA
+  encounters (ROUTE117):
+    fishing     MAGIKARP L5-10, GOLDEEN L5-10, CORPHISH L10-30
+    grass       POOCHYENA L13-13, ODDISH L13-13, MARILL L13-13, ILLUMISE L13-13, VOLBEAT L13-13, SEEDOT L13-13
+    surf        MARILL L20-30, GOLDEEN L20-30
+  items (ROUTE117):
+    ball       GREAT_BALL, REVIVE
+    hidden     REPEL
+
+------------------------------------------------------------------------------
+Verdanturf Town
+  gate: gym_wattson
+  note: No encounters.
+  (no trainers, encounters or items)
+
+------------------------------------------------------------------------------
+Route 111 (south)
+  gate: gym_wattson
+  note: UNSURE: Route 111 spans south desert and north. The desert needs Go Gogg
+        les (obtained after Mt. Chimney), so its encounters unlock later than th
+        e southern trainers.
+  trainers (ROUTE111):
+    [o] TRAINER_VICTOR
+    [o] TRAINER_VICTORIA
+    [o] TRAINER_VIVI
+    [o] TRAINER_VICKY
+    [o] TRAINER_DREW
+    [o] TRAINER_HEIDI
+    [o] TRAINER_BEAU
+    [o] TRAINER_BECKY
+    [o] TRAINER_DUSTY_1
+    [o] TRAINER_TRAVIS
+    [o] TRAINER_IRENE
+    [o] TRAINER_DAISUKE
+    [o] TRAINER_WILTON_1
+    [o] TRAINER_BROOKE_1
+    [o] TRAINER_HAYDEN
+    [o] TRAINER_BIANCA
+    [o] TRAINER_TYRON
+    [o] TRAINER_CELINA
+    [o] TRAINER_CELIA
+    [o] TRAINER_BRYAN
+    [o] TRAINER_BRANDEN
+  encounters (ROUTE111):
+    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
+    grass       SANDSHREW L20-20, TRAPINCH L20-20, BALTOY L19-19, CACNEA L20-20
+    rock_smash  GEODUDE L10-15
+    surf        MARILL L20-30, GOLDEEN L20-30
+  items (ROUTE111):
+    ball       TM_SANDSTORM, STARDUST, HP_UP, ELIXIR
+    hidden     STARDUST, PROTEIN, RARE_CANDY
+
+------------------------------------------------------------------------------
+Route 112
+  gate: gym_wattson
+  trainers (ROUTE112):
+    [o] TRAINER_BRICE
+    [o] TRAINER_TRENT_1
+    [o] TRAINER_LARRY
+    [o] TRAINER_CAROL
+    [o] TRAINER_BRYANT
+    [o] TRAINER_SHAYLA
+  encounters (ROUTE112):
+    grass       NUMEL L15-15, MARILL L15-15
+  items (ROUTE112):
+    ball       NUGGET
+
+------------------------------------------------------------------------------
+Fiery Path
+  gate: gym_wattson
+  note: Full access needs Strength; encounters reachable on first pass.
+  encounters (FIERY_PATH):
+    grass       NUMEL L15-15, KOFFING L15-15, MACHOP L15-15, TORKOAL L15-15, SLUGMA L15-15, GRIMER L14-14
+  items (FIERY_PATH):
+    ball       TM_TOXIC, FIRE_STONE
+
+------------------------------------------------------------------------------
+Route 113
+  gate: gym_wattson
+  trainers (ROUTE113):
+    [o] TRAINER_JAYLEN
+    [o] TRAINER_DILLON
+    [o] TRAINER_MADELINE_1
+    [o] TRAINER_LAO_1
+    [o] TRAINER_LUNG
+    [o] TRAINER_TORI_AND_TIA  (DOUBLE)
+    [o] TRAINER_SOPHIE
+    [o] TRAINER_COBY
+    [o] TRAINER_LAWRENCE
+    [o] TRAINER_WYATT
+  encounters (ROUTE113):
+    grass       SPINDA L15-15, SLUGMA L15-15, SKARMORY L16-16
+  items (ROUTE113):
+    ball       MAX_ETHER, SUPER_REPEL, HYPER_POTION
+    hidden     ETHER, TM_DOUBLE_TEAM, NUGGET
+
+------------------------------------------------------------------------------
+Fallarbor Town
+  gate: gym_wattson
+  note: No encounters.
+  items (FALLARBOR_TOWN):
+    hidden     NUGGET
+
+------------------------------------------------------------------------------
+Route 114
+  gate: gym_wattson
+  trainers (ROUTE114):
+    [o] TRAINER_LENNY
+    [o] TRAINER_LUCAS_1
+    [o] TRAINER_SHANE
+    [o] TRAINER_NANCY
+    [o] TRAINER_STEVE_1
+    [o] TRAINER_BERNIE_1
+    [o] TRAINER_CLAUDE
+    [o] TRAINER_NOLAN
+    [o] TRAINER_TYRA_AND_IVY  (DOUBLE)
+    [o] TRAINER_ANGELINA
+    [o] TRAINER_CHARLOTTE
+    [o] TRAINER_KAI
+  encounters (ROUTE114):
+    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
+    grass       SWABLU L16-16, LOTAD L16-16, LOMBRE L16-16, SEVIPER L17-17, NUZLEAF L15-15
+    rock_smash  GEODUDE L10-15
+    surf        MARILL L20-30, GOLDEEN L20-30
+  items (ROUTE114):
+    ball       RARE_CANDY, PROTEIN, ENERGY_POWDER
+    hidden     CARBOS, REVIVE
+
+------------------------------------------------------------------------------
+Meteor Falls
+  gate: gym_wattson
+  note: Deeper rooms need Surf and Waterfall.
+  encounters (METEOR_FALLS_1F_1R):
+    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
+    grass       ZUBAT L16-16, SOLROCK L16-16
+    surf        ZUBAT L5-35, SOLROCK L25-35
+  items (METEOR_FALLS_1F_1R):
+    ball       TM_IRON_TAIL, MOON_STONE, FULL_HEAL, PP_UP
+  trainers (METEOR_FALLS_1F_2R):
+    [o] TRAINER_NICOLAS_1
+    [o] TRAINER_JOHN_AND_JAY_1  (DOUBLE)
+  encounters (METEOR_FALLS_1F_2R):
+    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30, WHISCASH L30-35
+    grass       GOLBAT L33-33, SOLROCK L35-35
+    surf        GOLBAT L30-35, SOLROCK L25-35
+  encounters (METEOR_FALLS_B1F_1R):
+    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30, WHISCASH L30-35
+    grass       GOLBAT L33-33, SOLROCK L35-35
+    surf        GOLBAT L30-35, SOLROCK L25-35
+  encounters (METEOR_FALLS_B1F_2R):
+    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30, WHISCASH L30-35
+    grass       GOLBAT L33-33, BAGON L30-30, SOLROCK L35-35
+    surf        GOLBAT L30-35, SOLROCK L25-35
+  items (METEOR_FALLS_B1F_2R):
+    ball       TM_DRAGON_CLAW
+
+------------------------------------------------------------------------------
+Route 115
+  gate: gym_wattson
+  trainers (ROUTE115):
+    [o] TRAINER_TIMOTHY_1
+    [o] TRAINER_KOICHI
+    [o] TRAINER_NOB_1
+    [o] TRAINER_CYNDY_1
+    [o] TRAINER_HECTOR
+    [o] TRAINER_KYRA
+    [o] TRAINER_JAIDEN
+    [o] TRAINER_ALIX
+    [o] TRAINER_HELENE
+    [o] TRAINER_MARLENE
+  encounters (ROUTE115):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+    grass       SWABLU L23-23, TAILLOW L23-23, SWELLOW L25-25, JIGGLYPUFF L24-24, WINGULL L24-24
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE115):
+    ball       SUPER_POTION, TM_FOCUS_PUNCH, IRON, GREAT_BALL, PP_UP, HEAL_POWDER
+    hidden     HEART_SCALE
+
+------------------------------------------------------------------------------
+Jagged Pass
+  gate: meteor_falls_magma
+  note: UNSURE: reached from Route 112 via the Cable Car area.
+  trainers (JAGGED_PASS):
+    [M] TRAINER_GRUNT_JAGGED_PASS
+    [o] TRAINER_ERIC
+    [o] TRAINER_DIANA_1
+    [o] TRAINER_ETHAN_1
+    [o] TRAINER_JULIO
+    [o] TRAINER_AUTUMN
+  encounters (JAGGED_PASS):
+    grass       NUMEL L21-21, MACHOP L21-21, SPOINK L20-20
+  items (JAGGED_PASS):
+    ball       BURN_HEAL
+    hidden     FULL_HEAL, GREAT_BALL
+
+------------------------------------------------------------------------------
+Mt. Chimney
+  gate: jagged_pass
+  note: Magma Admin Tabitha then Magma Leader Maxie -- mandatory plot fights.
+  trainers (MT_CHIMNEY):
+    [M] TRAINER_MAXIE_MT_CHIMNEY
+    [M] TRAINER_TABITHA_MT_CHIMNEY
+    [M] TRAINER_GRUNT_MT_CHIMNEY_2
+    [o] TRAINER_SHELBY_1
+    [o] TRAINER_MELISSA
+    [o] TRAINER_SHEILA
+    [o] TRAINER_SHIRLEY
+    [M] TRAINER_GRUNT_MT_CHIMNEY_1
+    [o] TRAINER_SAWYER_1
+
+------------------------------------------------------------------------------
+Route 111 (desert)
+  gate: mt_chimney
+  note: Go Goggles obtained after Mt. Chimney open the desert.
+  encounters (ROUTE111):
+    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
+    grass       SANDSHREW L20-20, TRAPINCH L20-20, BALTOY L19-19, CACNEA L20-20
+    rock_smash  GEODUDE L10-15
+    surf        MARILL L20-30, GOLDEEN L20-30
+  items (ROUTE111):
+    ball       TM_SANDSTORM, STARDUST, HP_UP, ELIXIR
+    hidden     STARDUST, PROTEIN, RARE_CANDY
+
+------------------------------------------------------------------------------
+Lavaridge Town
+  gate: mt_chimney
+  items (LAVARIDGE_TOWN):
+    hidden     ICE_HEAL
+
+------------------------------------------------------------------------------
+Lavaridge Gym   >>> HEAT BADGE <<<
+  gate: mt_chimney
+  note: GYM 4 -- Flannery. Gives TM50 Overheat.
+  trainers (LAVARIDGE_TOWN_GYM_1F):
+    [M] TRAINER_FLANNERY_1
+    [o] TRAINER_BATTLE_CONTINUE_SCRIPT
+  (no trainers, encounters or items)
+
+------------------------------------------------------------------------------
+Petalburg Gym   >>> BALANCE BADGE <<<
+  gate: gym_flannery
+  note: GYM 5 -- Norman. Opens only at four badges. Gives TM42 Facade.
+  trainers (PETALBURG_CITY_GYM):
+    [M] TRAINER_NORMAN_1
+    [o] TRAINER_RANDALL
+    [o] TRAINER_PARKER
+    [o] TRAINER_GEORGE
+    [o] TRAINER_BERKE
+    [o] TRAINER_MARY
+    [o] TRAINER_ALEXIA
+    [o] TRAINER_JODY
+
+------------------------------------------------------------------------------
+Route 118
+  gate: gym_norman
+  note: Needs Surf to cross fully.
+  trainers (ROUTE118):
+    [o] TRAINER_ROSE_1
+    [o] TRAINER_BARNY
+    [o] TRAINER_WADE
+    [o] TRAINER_DALTON_1
+    [o] TRAINER_PERRY
+    [o] TRAINER_CHESTER
+    [o] TRAINER_DEANDRE
+  encounters (ROUTE118):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, CARVANHA L10-30, SHARPEDO L30-35
+    grass       ZIGZAGOON L24-24, ELECTRIKE L24-24, LINOONE L26-26, MANECTRIC L26-26, WINGULL L25-25, KECLEON L25-25
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE118):
+    ball       HYPER_POTION
+    hidden     IRON, HEART_SCALE
+
+------------------------------------------------------------------------------
+Route 119
+  gate: gym_norman
+  note: Weather Institute (Aqua) and rival 4 are here.
+  trainers (ROUTE119):
+    [M] TRAINER_MAY_ROUTE_119_TREECKO
+    [M] TRAINER_MAY_ROUTE_119_TORCHIC
+    [M] TRAINER_MAY_ROUTE_119_MUDKIP
+    [M] TRAINER_BRENDAN_ROUTE_119_TREECKO
+    [M] TRAINER_BRENDAN_ROUTE_119_TORCHIC
+    [M] TRAINER_BRENDAN_ROUTE_119_MUDKIP
+    [o] TRAINER_BRENT
+    [o] TRAINER_DONALD
+    [o] TRAINER_TAYLOR
+    [o] TRAINER_DOUG
+    [o] TRAINER_GREG
+    [o] TRAINER_KENT
+    [o] TRAINER_JACKSON_1
+    [o] TRAINER_CATHERINE_1
+    [o] TRAINER_HUGH
+    [o] TRAINER_PHIL
+    [o] TRAINER_YASU
+    [o] TRAINER_TAKASHI
+    [o] TRAINER_HIDEO
+    [o] TRAINER_CHRIS
+    [o] TRAINER_FABIAN
+    [o] TRAINER_DAYTON
+    [o] TRAINER_RACHEL
+  encounters (ROUTE119):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, CARVANHA L10-30
+    grass       ZIGZAGOON L25-25, LINOONE L25-25, ODDISH L25-25, TROPIUS L25-25, KECLEON L25-25
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE119):
+    ball       SUPER_REPEL, ZINC, ELIXIR, LEAF_STONE, RARE_CANDY, HYPER_POTION, HYPER_POTION, NUGGET, ELIXIR
+    hidden     CALCIUM, ULTRA_BALL, FULL_HEAL, MAX_ETHER
+
+------------------------------------------------------------------------------
+Weather Institute
+  gate: gym_norman
+  note: Aqua Admin Shelly -- mandatory. Gives Castform.
+  trainers (ROUTE119_WEATHER_INSTITUTE_1F):
+    [M] TRAINER_GRUNT_WEATHER_INST_1
+    [M] TRAINER_GRUNT_WEATHER_INST_4
+  trainers (ROUTE119_WEATHER_INSTITUTE_2F):
+    [M] TRAINER_GRUNT_WEATHER_INST_5
+    [M] TRAINER_GRUNT_WEATHER_INST_2
+    [M] TRAINER_GRUNT_WEATHER_INST_3
+    [M] TRAINER_SHELLY_WEATHER_INSTITUTE
+
+------------------------------------------------------------------------------
+Fortree City
+  gate: weather_institute
+  (no trainers, encounters or items)
+
+------------------------------------------------------------------------------
+Fortree Gym   >>> FEATHER BADGE <<<
+  gate: weather_institute
+  note: GYM 6 -- Winona. Gives TM40 Aerial Ace.
+  trainers (FORTREE_CITY_GYM):
+    [M] TRAINER_WINONA_1
+    [o] TRAINER_JARED
+    [o] TRAINER_EDWARDO
+    [o] TRAINER_FLINT
+    [o] TRAINER_ASHLEY
+    [o] TRAINER_HUMBERTO
+    [o] TRAINER_DARIUS
+
+------------------------------------------------------------------------------
+Route 120
+  gate: gym_winona
+  trainers (ROUTE120):
+    [o] TRAINER_COLIN
+    [o] TRAINER_ROBERT_1
+    [o] TRAINER_LORENZO
+    [o] TRAINER_JENNA
+    [o] TRAINER_JEFFREY_1
+    [o] TRAINER_JENNIFER
+    [o] TRAINER_CHIP
+    [o] TRAINER_CLARISSA
+    [o] TRAINER_ANGELICA
+    [o] TRAINER_KEIGO
+    [o] TRAINER_RILEY
+    [o] TRAINER_LEONEL
+    [o] TRAINER_CALLIE
+  encounters (ROUTE120):
+    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
+    grass       POOCHYENA L25-25, MIGHTYENA L25-25, ODDISH L25-25, MARILL L25-25, ABSOL L25-25, KECLEON L25-25, SEEDOT L25-25
+    surf        MARILL L20-30, GOLDEEN L20-30
+  items (ROUTE120):
+    ball       NUGGET, FULL_HEAL, NEST_BALL, HYPER_POTION, REVIVE
+    hidden     RARE_CANDY, REVIVE, RARE_CANDY, ZINC
+
+------------------------------------------------------------------------------
+Route 121
+  gate: gym_winona
+  trainers (ROUTE121):
+    [o] TRAINER_VANESSA
+    [o] TRAINER_WALTER_1
+    [o] TRAINER_TAMMY
+    [o] TRAINER_KATE_AND_JOY  (DOUBLE)
+    [o] TRAINER_JESSICA_1
+    [o] TRAINER_CALE
+    [o] TRAINER_MYLES
+    [o] TRAINER_PAT
+    [o] TRAINER_MARCEL
+    [o] TRAINER_CRISTIN_1
+  encounters (ROUTE121):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+    grass       POOCHYENA L26-26, SHUPPET L26-26, MIGHTYENA L26-26, ODDISH L26-26, GLOOM L28-28, WINGULL L26-26, KECLEON L25-25
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE121):
+    ball       CARBOS, REVIVE, ZINC
+    hidden     HP_UP, NUGGET, FULL_HEAL, MAX_REVIVE
+
+------------------------------------------------------------------------------
+Safari Zone
+  gate: gym_winona
+  note: UNSURE: Safari Zone catching bypasses normal battle mechanics entirely. 
+        Probably needs its own rule or exclusion -- flagged, not decided.
+  encounters (SAFARI_ZONE_SOUTH):
+    grass       ODDISH L25-25, GIRAFARIG L25-25, NATU L25-25, DODUO L25-25, GLOOM L25-25, WOBBUFFET L27-27, PIKACHU L25-25
+  encounters (SAFARI_ZONE_NORTH):
+    grass       PHANPY L27-27, ODDISH L27-27, NATU L27-27, GLOOM L29-29, XATU L29-29, HERACROSS L27-27
+    rock_smash  GEODUDE L10-15
+  items (SAFARI_ZONE_NORTH):
+    ball       CALCIUM
+  encounters (SAFARI_ZONE_SOUTHEAST):
+    fishing     MAGIKARP L25-30, GOLDEEN L25-30, REMORAID L30-35, OCTILLERY L35-40
+    grass       SUNKERN L33-33, MAREEP L34-34, AIPOM L34-34, SPINARAK L33-33, HOOTHOOT L35-35, SNUBBULL L34-34, STANTLER L36-36, GLIGAR L37-37
+    surf        WOOPER L25-30, MARILL L25-30, QUAGSIRE L35-40
+  items (SAFARI_ZONE_SOUTHEAST):
+    ball       BIG_PEARL
+    hidden     PP_UP, FULL_RESTORE
+  encounters (SAFARI_ZONE_NORTHEAST):
+    grass       AIPOM L33-33, TEDDIURSA L34-34, SUNKERN L34-34, LEDYBA L33-33, HOOTHOOT L35-35, PINECO L34-34, HOUNDOUR L36-36, MILTANK L37-37
+    rock_smash  SHUCKLE L25-30
+  items (SAFARI_ZONE_NORTHEAST):
+    ball       NUGGET
+    hidden     RARE_CANDY, ZINC
+
+------------------------------------------------------------------------------
+Mt. Pyre
+  gate: gym_winona
+  encounters (MT_PYRE_1F):
+    grass       SHUPPET L27-27
+  trainers (MT_PYRE_2F):
+    [o] TRAINER_MARK
+    [o] TRAINER_DEZ_AND_LUKE  (DOUBLE)
+    [o] TRAINER_LEAH
+    [o] TRAINER_ZANDER
+  encounters (MT_PYRE_2F):
+    grass       SHUPPET L27-27
+  items (MT_PYRE_2F):
+    ball       ULTRA_BALL
+  trainers (MT_PYRE_3F):
+    [o] TRAINER_WILLIAM
+    [o] TRAINER_KAYLA
+    [o] TRAINER_GABRIELLE_1
+  encounters (MT_PYRE_3F):
+    grass       SHUPPET L27-27
+  items (MT_PYRE_3F):
+    ball       SUPER_REPEL
+  trainers (MT_PYRE_4F):
+    [o] TRAINER_ATSUSHI
+  encounters (MT_PYRE_4F):
+    grass       SHUPPET L27-27, DUSKULL L27-27
+  items (MT_PYRE_4F):
+    ball       SEA_INCENSE
+  trainers (MT_PYRE_5F):
+    [o] TRAINER_TASHA
+  encounters (MT_PYRE_5F):
+    grass       SHUPPET L27-27, DUSKULL L27-27
+  items (MT_PYRE_5F):
+    ball       LAX_INCENSE
+  trainers (MT_PYRE_6F):
+    [o] TRAINER_VALERIE_1
+    [o] TRAINER_CEDRIC
+  encounters (MT_PYRE_6F):
+    grass       SHUPPET L27-27, DUSKULL L27-27
+  items (MT_PYRE_6F):
+    ball       TM_SHADOW_BALL
+  encounters (MT_PYRE_EXTERIOR):
+    grass       SHUPPET L27-27, VULPIX L29-29, WINGULL L27-27
+  items (MT_PYRE_EXTERIOR):
+    ball       MAX_POTION, TM_SKILL_SWAP
+    hidden     ULTRA_BALL, MAX_ETHER
+  trainers (MT_PYRE_SUMMIT):
+    [M] TRAINER_GRUNT_MT_PYRE_1
+    [M] TRAINER_GRUNT_MT_PYRE_2
+    [M] TRAINER_GRUNT_MT_PYRE_3
+    [M] TRAINER_GRUNT_MT_PYRE_4
+  encounters (MT_PYRE_SUMMIT):
+    grass       SHUPPET L28-28, DUSKULL L28-28, CHIMECHO L28-28
+  items (MT_PYRE_SUMMIT):
+    hidden     ZINC, RARE_CANDY
+
+------------------------------------------------------------------------------
+Route 122
+  gate: gym_winona
+  encounters (ROUTE122):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+
+------------------------------------------------------------------------------
+Route 123
+  gate: gym_winona
+  trainers (ROUTE123):
+    [o] TRAINER_WENDY
+    [o] TRAINER_BRAXTON
+    [o] TRAINER_VIOLET
+    [o] TRAINER_CAMERON_1
+    [o] TRAINER_JACKI_1
+    [o] TRAINER_MIU_AND_YUKI  (DOUBLE)
+    [o] TRAINER_KINDRA
+    [o] TRAINER_FREDRICK
+    [o] TRAINER_ALBERTO
+    [o] TRAINER_ED
+    [o] TRAINER_KAYLEY
+    [o] TRAINER_JONAS
+    [o] TRAINER_JAZMYN
+    [o] TRAINER_DAVIS
+    [o] TRAINER_FERNANDO_1
+  encounters (ROUTE123):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+    grass       POOCHYENA L26-26, SHUPPET L26-26, MIGHTYENA L26-26, ODDISH L26-26, GLOOM L28-28, WINGULL L26-26, KECLEON L25-25
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE123):
+    ball       CALCIUM, ULTRA_BALL, ELIXIR, PP_UP, REVIVAL_HERB
+    hidden     SUPER_REPEL, REVIVE, HYPER_POTION, PP_UP, RARE_CANDY
+
+------------------------------------------------------------------------------
+Lilycove City
+  gate: mt_pyre
+  note: Rival 5 fights here.
+  trainers (LILYCOVE_CITY):
+    [M] TRAINER_MAY_LILYCOVE_TREECKO
+    [M] TRAINER_MAY_LILYCOVE_TORCHIC
+    [M] TRAINER_MAY_LILYCOVE_MUDKIP
+    [M] TRAINER_BRENDAN_LILYCOVE_TREECKO
+    [M] TRAINER_BRENDAN_LILYCOVE_TORCHIC
+    [M] TRAINER_BRENDAN_LILYCOVE_MUDKIP
+  encounters (LILYCOVE_CITY):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, STARYU L25-30
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (LILYCOVE_CITY):
+    ball       MAX_REPEL
+    hidden     HEART_SCALE, PP_UP, POKE_BALL
+
+------------------------------------------------------------------------------
+Magma Hideout
+  gate: rival_lilycove
+  note: Emerald: Magma Hideout is on Jagged Pass. Maxie fight is mandatory.
+  trainers (MAGMA_HIDEOUT_1F):
+    [M] TRAINER_GRUNT_MAGMA_HIDEOUT_1
+    [M] TRAINER_GRUNT_MAGMA_HIDEOUT_2
+  encounters (MAGMA_HIDEOUT_1F):
+    grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
+  items (MAGMA_HIDEOUT_1F):
+    ball       RARE_CANDY
+  trainers (MAGMA_HIDEOUT_2F_1R):
+    [M] TRAINER_GRUNT_MAGMA_HIDEOUT_14
+    [M] TRAINER_GRUNT_MAGMA_HIDEOUT_3
+    [M] TRAINER_GRUNT_MAGMA_HIDEOUT_4
+    [M] TRAINER_GRUNT_MAGMA_HIDEOUT_5
+  encounters (MAGMA_HIDEOUT_2F_1R):
+    grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
+  trainers (MAGMA_HIDEOUT_2F_2R):
+    [M] TRAINER_GRUNT_MAGMA_HIDEOUT_15
+    [M] TRAINER_GRUNT_MAGMA_HIDEOUT_6
+    [M] TRAINER_GRUNT_MAGMA_HIDEOUT_7
+    [M] TRAINER_GRUNT_MAGMA_HIDEOUT_8
+  encounters (MAGMA_HIDEOUT_2F_2R):
+    grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
+  items (MAGMA_HIDEOUT_2F_2R):
+    ball       MAX_ELIXIR, FULL_RESTORE
+  encounters (MAGMA_HIDEOUT_2F_3R):
+    grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
+  trainers (MAGMA_HIDEOUT_3F_1R):
+    [M] TRAINER_GRUNT_MAGMA_HIDEOUT_9
+    [M] TRAINER_GRUNT_MAGMA_HIDEOUT_16
+  encounters (MAGMA_HIDEOUT_3F_1R):
+    grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
+  items (MAGMA_HIDEOUT_3F_1R):
+    ball       NUGGET
+  trainers (MAGMA_HIDEOUT_3F_2R):
+    [M] TRAINER_GRUNT_MAGMA_HIDEOUT_10
+  encounters (MAGMA_HIDEOUT_3F_2R):
+    grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
+  items (MAGMA_HIDEOUT_3F_2R):
+    ball       PP_MAX
+  encounters (MAGMA_HIDEOUT_3F_3R):
+    grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
+  items (MAGMA_HIDEOUT_3F_3R):
+    ball       ESCAPE_ROPE
+  trainers (MAGMA_HIDEOUT_4F):
+    [M] TRAINER_MAXIE_MAGMA_HIDEOUT
+    [M] TRAINER_GRUNT_MAGMA_HIDEOUT_11
+    [M] TRAINER_GRUNT_MAGMA_HIDEOUT_12
+    [M] TRAINER_GRUNT_MAGMA_HIDEOUT_13
+    [M] TRAINER_TABITHA_MAGMA_HIDEOUT
+  encounters (MAGMA_HIDEOUT_4F):
+    grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
+  items (MAGMA_HIDEOUT_4F):
+    ball       MAX_REVIVE
+
+------------------------------------------------------------------------------
+Aqua Hideout
+  gate: magma_hideout
+  note: Aqua Admin Matt -- mandatory.
+  trainers (AQUA_HIDEOUT_1F):
+    [M] TRAINER_GRUNT_AQUA_HIDEOUT_1
+  trainers (AQUA_HIDEOUT_B1F):
+    [M] TRAINER_GRUNT_AQUA_HIDEOUT_2
+    [M] TRAINER_GRUNT_AQUA_HIDEOUT_3
+    [M] TRAINER_GRUNT_AQUA_HIDEOUT_5
+    [M] TRAINER_GRUNT_AQUA_HIDEOUT_7
+  items (AQUA_HIDEOUT_B1F):
+    ball       MAX_ELIXIR, MASTER_BALL, NUGGET
+  trainers (AQUA_HIDEOUT_B2F):
+    [M] TRAINER_MATT
+    [M] TRAINER_GRUNT_AQUA_HIDEOUT_4
+    [M] TRAINER_GRUNT_AQUA_HIDEOUT_6
+    [M] TRAINER_GRUNT_AQUA_HIDEOUT_8
+  items (AQUA_HIDEOUT_B2F):
+    ball       NEST_BALL
+
+------------------------------------------------------------------------------
+Route 124
+  gate: aqua_hideout
+  note: Surf.
+  trainers (ROUTE124):
+    [o] TRAINER_SPENCER
+    [o] TRAINER_ROLAND
+    [o] TRAINER_JENNY_1
+    [o] TRAINER_GRACE
+    [o] TRAINER_CHAD
+    [o] TRAINER_LILA_AND_ROY_1  (DOUBLE)
+    [o] TRAINER_DECLAN
+    [o] TRAINER_ISABELLA
+  encounters (ROUTE124):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE124):
+    ball       RED_SHARD, BLUE_SHARD, YELLOW_SHARD
+
+------------------------------------------------------------------------------
+Mossdeep City
+  gate: aqua_hideout
+  encounters (MOSSDEEP_CITY):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (MOSSDEEP_CITY):
+    ball       NET_BALL
+
+------------------------------------------------------------------------------
+Mossdeep Gym   >>> MIND BADGE <<<
+  gate: aqua_hideout
+  note: GYM 7 -- Tate & Liza. DOUBLE battle. Gives TM04 Calm Mind.
+  trainers (MOSSDEEP_CITY_GYM):
+    [M] TRAINER_TATE_AND_LIZA_1  (DOUBLE)
+    [o] TRAINER_PRESTON
+    [o] TRAINER_VIRGIL
+    [o] TRAINER_BLAKE
+    [o] TRAINER_HANNAH
+    [o] TRAINER_SAMANTHA
+    [o] TRAINER_MAURA
+    [o] TRAINER_SYLVIA
+    [o] TRAINER_NATE
+    [o] TRAINER_MACEY
+    [o] TRAINER_CLIFFORD
+    [o] TRAINER_NICHOLAS
+    [o] TRAINER_KATHLEEN
+
+------------------------------------------------------------------------------
+Space Center
+  gate: gym_tate_liza
+  note: Magma Admin Tabitha and Maxie -- mandatory.
+  trainers (MOSSDEEP_CITY_SPACE_CENTER_1F):
+    [M] TRAINER_GRUNT_SPACE_CENTER_3
+    [M] TRAINER_GRUNT_SPACE_CENTER_1
+    [M] TRAINER_GRUNT_SPACE_CENTER_4
+    [M] TRAINER_GRUNT_SPACE_CENTER_2
+  trainers (MOSSDEEP_CITY_SPACE_CENTER_2F):
+    [M] TRAINER_GRUNT_SPACE_CENTER_5
+    [M] TRAINER_GRUNT_SPACE_CENTER_6
+    [M] TRAINER_GRUNT_SPACE_CENTER_7
+
+------------------------------------------------------------------------------
+Route 125
+  gate: gym_tate_liza
+  trainers (ROUTE125):
+    [o] TRAINER_NOLEN
+    [o] TRAINER_STAN
+    [o] TRAINER_TANYA
+    [o] TRAINER_SHARON
+    [o] TRAINER_ERNEST_1
+    [o] TRAINER_KIM_AND_IRIS  (DOUBLE)
+    [o] TRAINER_PRESLEY
+    [o] TRAINER_AURON
+  encounters (ROUTE125):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE125):
+    ball       BIG_PEARL
+
+------------------------------------------------------------------------------
+Route 127
+  gate: space_center
+  trainers (ROUTE127):
+    [o] TRAINER_CAMDEN
+    [o] TRAINER_DONNY
+    [o] TRAINER_JONAH
+    [o] TRAINER_HENRY
+    [o] TRAINER_ROGER
+    [o] TRAINER_AIDAN
+    [o] TRAINER_ATHENA
+    [o] TRAINER_KOJI_1
+  encounters (ROUTE127):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE127):
+    ball       ZINC, CARBOS, RARE_CANDY
+
+------------------------------------------------------------------------------
+Route 128
+  gate: space_center
+  trainers (ROUTE128):
+    [o] TRAINER_ISAIAH_1
+    [o] TRAINER_KATELYN_1
+    [o] TRAINER_ALEXA
+    [o] TRAINER_RUBEN
+    [o] TRAINER_WAYNE
+    [o] TRAINER_HARRISON
+    [o] TRAINER_CARLEE
+  encounters (ROUTE128):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, LUVDISC L10-30, WAILMER L10-30, CORSOLA L30-35
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE128):
+    hidden     HEART_SCALE, HEART_SCALE, HEART_SCALE
+
+------------------------------------------------------------------------------
+Seafloor Cavern
+  gate: space_center
+  note: Aqua Leader Archie -- mandatory.
+  encounters (SEAFLOOR_CAVERN_ENTRANCE):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+    surf        TENTACOOL L5-35, ZUBAT L5-35, GOLBAT L30-35
+  trainers (SEAFLOOR_CAVERN_ROOM1):
+    [M] TRAINER_GRUNT_SEAFLOOR_CAVERN_1
+    [M] TRAINER_GRUNT_SEAFLOOR_CAVERN_2
+  encounters (SEAFLOOR_CAVERN_ROOM1):
+    grass       ZUBAT L30-30, GOLBAT L34-34
+  encounters (SEAFLOOR_CAVERN_ROOM2):
+    grass       ZUBAT L30-30, GOLBAT L34-34
+  trainers (SEAFLOOR_CAVERN_ROOM3):
+    [M] TRAINER_SHELLY_SEAFLOOR_CAVERN
+    [M] TRAINER_GRUNT_SEAFLOOR_CAVERN_5
+  encounters (SEAFLOOR_CAVERN_ROOM3):
+    grass       ZUBAT L30-30, GOLBAT L34-34
+  trainers (SEAFLOOR_CAVERN_ROOM4):
+    [M] TRAINER_GRUNT_SEAFLOOR_CAVERN_3
+    [M] TRAINER_GRUNT_SEAFLOOR_CAVERN_4
+  encounters (SEAFLOOR_CAVERN_ROOM4):
+    grass       ZUBAT L30-30, GOLBAT L34-34
+  encounters (SEAFLOOR_CAVERN_ROOM5):
+    grass       ZUBAT L30-30, GOLBAT L34-34
+  encounters (SEAFLOOR_CAVERN_ROOM6):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+    grass       ZUBAT L30-30, GOLBAT L34-34
+    surf        TENTACOOL L5-35, ZUBAT L5-35, GOLBAT L30-35
+  encounters (SEAFLOOR_CAVERN_ROOM7):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+    grass       ZUBAT L30-30, GOLBAT L34-34
+    surf        TENTACOOL L5-35, ZUBAT L5-35, GOLBAT L30-35
+  encounters (SEAFLOOR_CAVERN_ROOM8):
+    grass       ZUBAT L30-30, GOLBAT L34-34
+  trainers (SEAFLOOR_CAVERN_ROOM9):
+    [M] TRAINER_ARCHIE
+  items (SEAFLOOR_CAVERN_ROOM9):
+    ball       TM_EARTHQUAKE
+
+------------------------------------------------------------------------------
+Route 126
+  gate: space_center
+  trainers (ROUTE126):
+    [o] TRAINER_BARRY
+    [o] TRAINER_DEAN
+    [o] TRAINER_NIKKI
+    [o] TRAINER_BRENDA
+    [o] TRAINER_LEONARDO
+    [o] TRAINER_ISOBEL
+    [o] TRAINER_SIENNA
+    [o] TRAINER_PABLO_1
+  encounters (ROUTE126):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE126):
+    ball       GREEN_SHARD
+
+------------------------------------------------------------------------------
+Sootopolis City
+  gate: seafloor_cavern
+  note: Rayquaza / Kyogre-Groudon plot. No trainers until the gym opens.
+  encounters (SOOTOPOLIS_CITY):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, GYARADOS L35-40
+    surf        MAGIKARP L5-35
+
+------------------------------------------------------------------------------
+Sootopolis Gym   >>> RAIN BADGE <<<
+  gate: sootopolis_plot
+  note: GYM 8 -- Juan. Gives TM03 Water Pulse.
+  trainers (SOOTOPOLIS_CITY_GYM_1F):
+    [M] TRAINER_JUAN_1
+  trainers (SOOTOPOLIS_CITY_GYM_B1F):
+    [o] TRAINER_ANDREA
+    [o] TRAINER_CRISSY
+    [o] TRAINER_BRIANNA
+    [o] TRAINER_CONNIE
+    [o] TRAINER_BRIDGET
+    [o] TRAINER_OLIVIA
+    [o] TRAINER_TIFFANY
+    [o] TRAINER_BETHANY
+    [o] TRAINER_ANNIKA
+    [o] TRAINER_DAPHNE
+
+------------------------------------------------------------------------------
+Route 129
+  gate: gym_juan
+  trainers (ROUTE129):
+    [o] TRAINER_CHASE
+    [o] TRAINER_ALLISON
+    [o] TRAINER_REED
+    [o] TRAINER_TISHA
+    [o] TRAINER_CLARENCE
+  encounters (ROUTE129):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30, WAILORD L25-30
+
+------------------------------------------------------------------------------
+Route 130
+  gate: gym_juan
+  note: Mirage Island.
+  trainers (ROUTE130):
+    [o] TRAINER_RODNEY
+    [o] TRAINER_KATIE
+    [o] TRAINER_SANTIAGO
+  encounters (ROUTE130):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+    grass       WYNAUT L30-30
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+
+------------------------------------------------------------------------------
+Route 131
+  gate: gym_juan
+  trainers (ROUTE131):
+    [o] TRAINER_RICHARD
+    [o] TRAINER_HERMAN
+    [o] TRAINER_SUSIE
+    [o] TRAINER_KARA
+    [o] TRAINER_RELI_AND_IAN  (DOUBLE)
+    [o] TRAINER_TALIA
+    [o] TRAINER_KEVIN
+  encounters (ROUTE131):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+
+------------------------------------------------------------------------------
+Route 132
+  gate: gym_juan
+  trainers (ROUTE132):
+    [o] TRAINER_GILBERT
+    [o] TRAINER_DANA
+    [o] TRAINER_RONALD
+    [o] TRAINER_KIYO
+    [o] TRAINER_PAXTON
+    [o] TRAINER_DARCY
+    [o] TRAINER_JONATHAN
+    [o] TRAINER_MAKAYLA
+  encounters (ROUTE132):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35, HORSEA L25-30
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE132):
+    ball       RARE_CANDY, PROTEIN
+
+------------------------------------------------------------------------------
+Route 133
+  gate: gym_juan
+  trainers (ROUTE133):
+    [o] TRAINER_FRANKLIN
+    [o] TRAINER_DEBRA
+    [o] TRAINER_LINDA
+    [o] TRAINER_WARREN
+    [o] TRAINER_BECK
+    [o] TRAINER_MOLLIE
+    [o] TRAINER_CONOR
+  encounters (ROUTE133):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35, HORSEA L25-30
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE133):
+    ball       BIG_PEARL, STAR_PIECE, MAX_REVIVE
+
+------------------------------------------------------------------------------
+Route 134
+  gate: gym_juan
+  trainers (ROUTE134):
+    [o] TRAINER_JACK
+    [o] TRAINER_LAUREL
+    [o] TRAINER_ALEX
+    [o] TRAINER_AARON
+    [o] TRAINER_HITOSHI
+    [o] TRAINER_HUDSON
+    [o] TRAINER_REYNA
+    [o] TRAINER_MARLEY
+    [o] TRAINER_KELVIN
+  encounters (ROUTE134):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35, HORSEA L25-30
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE134):
+    ball       CARBOS, STAR_PIECE
+
+------------------------------------------------------------------------------
+Victory Road
+  gate: gym_juan
+  note: Wally fights at the entrance.
+  trainers (VICTORY_ROAD_1F):
+    [M] TRAINER_WALLY_VR_1
+    [M] TRAINER_WALLY_VR_2
+    [o] TRAINER_EDGAR
+    [o] TRAINER_ALBERT
+    [o] TRAINER_HOPE
+    [o] TRAINER_QUINCY
+    [o] TRAINER_KATELYNN
+  encounters (VICTORY_ROAD_1F):
+    grass       GOLBAT L40-40, HARIYAMA L40-40, LAIRON L40-40, LOUDRED L40-40, ZUBAT L36-36, MAKUHITA L36-36, ARON L36-36, WHISMUR L36-36
+  items (VICTORY_ROAD_1F):
+    ball       MAX_ELIXIR, PP_UP
+    hidden     ULTRA_BALL
+  trainers (VICTORY_ROAD_B1F):
+    [o] TRAINER_SAMUEL
+    [o] TRAINER_SHANNON
+    [o] TRAINER_MICHELLE
+    [o] TRAINER_MITCHELL
+    [o] TRAINER_HALLE
+  encounters (VICTORY_ROAD_B1F):
+    grass       GOLBAT L40-40, HARIYAMA L40-40, LAIRON L40-40, MAWILE L38-38
+    rock_smash  GRAVELER L30-40, GEODUDE L30-40
+  items (VICTORY_ROAD_B1F):
+    ball       TM_PSYCHIC, FULL_RESTORE
+  trainers (VICTORY_ROAD_B2F):
+    [o] TRAINER_VITO
+    [o] TRAINER_OWEN
+    [o] TRAINER_CAROLINE
+    [o] TRAINER_JULIE
+    [o] TRAINER_FELIX
+    [o] TRAINER_DIANNE
+  encounters (VICTORY_ROAD_B2F):
+    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30, WHISCASH L30-35
+    grass       GOLBAT L40-40, SABLEYE L40-40, LAIRON L40-40, MAWILE L42-42
+    surf        GOLBAT L30-35
+  items (VICTORY_ROAD_B2F):
+    ball       FULL_HEAL
+    hidden     ELIXIR, MAX_REPEL
+
+------------------------------------------------------------------------------
+Pokemon League
+  gate: victory_road
+  note: Elite Four then Champion Wallace. No healing between -- the run ends her
+        e.
+  trainers (EVER_GRANDE_CITY_SIDNEYS_ROOM):
+    [M] TRAINER_SIDNEY
+  trainers (EVER_GRANDE_CITY_PHOEBES_ROOM):
+    [M] TRAINER_PHOEBE
+  trainers (EVER_GRANDE_CITY_GLACIAS_ROOM):
+    [M] TRAINER_GLACIA
+  trainers (EVER_GRANDE_CITY_DRAKES_ROOM):
+    [M] TRAINER_DRAKE
+  trainers (EVER_GRANDE_CITY_CHAMPIONS_ROOM):
+    [M] TRAINER_WALLACE
+
+==============================================================================
+TOTALS: 75 stops, 490 trainers listed, 221 items
+==============================================================================
+
+
+==============================================================================
+WHAT IS SOLID, WHAT IS NOT
+==============================================================================
+
+SOLID -- taken from the ROM's own data, not from a guide
+  * Which trainers exist on which map, and whether each fight is single or
+    double. Read from the trainerbattle commands in each map's scripts.
+  * Every wild encounter table, per map, per method, with level ranges.
+  * Every item ball and hidden item, with the exact item.
+  Spot-checked against the reference sheet: Route 102 (Calvin, Rick, Tiana,
+  Allen), Petalburg Woods (Lyle, Aqua Grunt, James) and Rustboro Gym (Josh,
+  Tommy, Marc, Roxanne) all match exactly.
+
+NOT SOLID -- written by hand, needs your judgement
+  1. THE GATES. Every "gate:" line is my reconstruction of progression from
+     playing the game, not something verified against the story flags. The
+     badge order is certainly right; which specific fight opens which route is
+     the weak part. Lines marked UNSURE are the ones I would check first.
+
+  2. ONE MAP, TWO AREAS. Route 104 (south before the Woods, north after) and
+     Route 111 (south now, desert only once the Go Goggles exist) are each a
+     single map with a single encounter table. R2 gives one encounter per
+     location, so this needs a ruling: is Route 104 one encounter or two?
+
+  3. REVISITS. Rustboro appears twice (gym, then the rival fight after the
+     Devon Goods). Same question as above -- does re-entering a location offer
+     a second encounter? I assumed no.
+
+  4. ITEMS ARE INCOMPLETE. Only item balls and hidden items are listed, because
+     only those are structured data. NOT included, and all significant:
+       - TMs given by gym leaders (TM39 from Roxanne, TM08 from Brawly, ...)
+       - every HM, which is what actually gates the map
+       - gift items (Wailmer Pail, Devon Goods, Go Goggles, bicycle, Castform)
+       - anything bought in a shop
+     These come from dialogue scripts. Extractable with more work, but I did
+     not want to guess at them.
+
+  5. CAPABILITY UNLOCKS ARE NOT MAPPED. The route says "needs Surf" in places
+     but nothing records WHERE Surf is obtained. Since §7.2 filters draws by
+     capability, this matters more than the item list does. My recollection,
+     to be checked: Cut (Rustboro cutter's house), Flash (Granite Cave man),
+     Rock Smash (Mauville), Strength (Rusturf Tunnel), Surf (Wally's father,
+     Petalburg, after Norman), Fly (Route 119 after the Weather Institute),
+     Dive (Mossdeep after badge 7), Waterfall (Sootopolis).
+
+  6. SAFARI ZONE. Catching there bypasses normal battle mechanics completely --
+     no damage, no status, Safari Balls only. It needs either its own rule or
+     an exclusion. Flagged, not decided.
+
+  7. STATIC AND SPECIAL ENCOUNTERS are absent, because they are not in the wild
+     tables: the legendaries, Kecleon, Sudowoodo, Voltorb, the roaming Latias
+     or Latios, Mirage Island, Marine/Terra Cave. Each needs a decision about
+     whether it counts as the location's encounter.
+
+  8. TRICK HOUSE has eight puzzles that open progressively across the game. The
+     trainers are listed but the unlock order is not modelled.
+
+  9. THE ELITE FOUR is one continuous run with no healing between rooms. The
+     table lists the five rooms as one stop but does not encode that rule.
+
+ 10. LEVEL CAPS are not here at all. If the run uses a per-badge cap, it has to
+     be added -- it is a rule, not map data.
+
+==============================================================================
