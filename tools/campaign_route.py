@@ -189,6 +189,22 @@ SOLID -- taken from the ROM's own data, not from a guide
   Allen), Petalburg Woods (Lyle, Aqua Grunt, James) and Rustboro Gym (Josh,
   Tommy, Marc, Roxanne) all match exactly.
 
+FOUND WHILE BUILDING THIS -- worth knowing
+  * THE SPACE CENTER FIGHT IS A MULTI BATTLE. Maxie and Tabitha are fought
+    2-vs-2 with Steven as your partner (multi_2_vs_2, PARTNER_STEVEN). It is
+    the only one in the game, it is mandatory, and the harness does not support
+    it -- HCMD_TRAINER_BATTLE handles single and double only. It also raises a
+    rules question: Steven's Pokemon are not yours, so what happens if one of
+    yours faints while a borrowed one is alive?
+  * A NAME-MATCHING RULE FOR "MANDATORY" WAS WRONG. Matching on substrings
+    pulled in TRAINER_MATTHEW, a Route 108 swimmer, for "MATT", and swept in
+    every avoidable hideout grunt via "GRUNT". The list is now explicit and
+    every id is checked against the game data at generation time.
+  * THE EXTRACT CONTAINS KANTO. pokeemerald-expansion ships the FireRed maps,
+    so campaign/extracted.json includes Mt. Moon, Rocket Hideout, the Sevii
+    Islands and so on. The route only walks Hoenn stops, so ROUTE.txt is clean,
+    but anything else reading extracted.json must filter them out.
+
 NOT SOLID -- written by hand, needs your judgement
   1. THE GATES. Every "gate:" line is my reconstruction of progression from
      playing the game, not something verified against the story flags. The
@@ -204,7 +220,12 @@ NOT SOLID -- written by hand, needs your judgement
      Devon Goods). Same question as above -- does re-entering a location offer
      a second encounter? I assumed no.
 
-  4. ITEMS ARE INCOMPLETE. Only item balls and hidden items are listed, because
+  4. WHICH GRUNTS ARE REALLY UNAVOIDABLE. Only the boss fights are listed for
+     the hideouts, Mt. Pyre and the Space Center approach. Many grunts in those
+     dungeons can be walked past, but I have not verified which, so the count
+     of mandatory fights is a lower bound.
+
+  5. ITEMS ARE INCOMPLETE. Only item balls and hidden items are listed, because
      only those are structured data. NOT included, and all significant:
        - TMs given by gym leaders (TM39 from Roxanne, TM08 from Brawly, ...)
        - every HM, which is what actually gates the map
@@ -213,7 +234,7 @@ NOT SOLID -- written by hand, needs your judgement
      These come from dialogue scripts. Extractable with more work, but I did
      not want to guess at them.
 
-  5. CAPABILITY UNLOCKS ARE NOT MAPPED. The route says "needs Surf" in places
+  6. CAPABILITY UNLOCKS ARE NOT MAPPED. The route says "needs Surf" in places
      but nothing records WHERE Surf is obtained. Since §7.2 filters draws by
      capability, this matters more than the item list does. My recollection,
      to be checked: Cut (Rustboro cutter's house), Flash (Granite Cave man),
@@ -221,22 +242,22 @@ NOT SOLID -- written by hand, needs your judgement
      Petalburg, after Norman), Fly (Route 119 after the Weather Institute),
      Dive (Mossdeep after badge 7), Waterfall (Sootopolis).
 
-  6. SAFARI ZONE. Catching there bypasses normal battle mechanics completely --
+  7. SAFARI ZONE. Catching there bypasses normal battle mechanics completely --
      no damage, no status, Safari Balls only. It needs either its own rule or
      an exclusion. Flagged, not decided.
 
-  7. STATIC AND SPECIAL ENCOUNTERS are absent, because they are not in the wild
+  8. STATIC AND SPECIAL ENCOUNTERS are absent, because they are not in the wild
      tables: the legendaries, Kecleon, Sudowoodo, Voltorb, the roaming Latias
      or Latios, Mirage Island, Marine/Terra Cave. Each needs a decision about
      whether it counts as the location's encounter.
 
-  8. TRICK HOUSE has eight puzzles that open progressively across the game. The
+  9. TRICK HOUSE has eight puzzles that open progressively across the game. The
      trainers are listed but the unlock order is not modelled.
 
-  9. THE ELITE FOUR is one continuous run with no healing between rooms. The
+ 10. THE ELITE FOUR is one continuous run with no healing between rooms. The
      table lists the five rooms as one stop but does not encode that rule.
 
- 10. LEVEL CAPS are not here at all. If the run uses a per-badge cap, it has to
+ 11. LEVEL CAPS are not here at all. If the run uses a per-badge cap, it has to
      be added -- it is a rule, not map data.
 
 ==============================================================================
@@ -249,16 +270,43 @@ METHOD_LABEL = {
     "fishing_mons": "fishing",
 }
 
-# Which fights are plot-mandatory. Everything else on a route is optional, which
-# matters for a nuzlocke: optional trainers are free EXP but also free risk.
-MANDATORY_HINT = ("BRENDAN", "MAY", "ROXANNE", "BRAWLY", "WATTSON", "FLANNERY",
-                  "NORMAN", "WINONA", "TATE", "LIZA", "JUAN", "WALLY",
-                  "ARCHIE", "MAXIE", "TABITHA", "SHELLY", "MATT",
-                  "SIDNEY", "PHOEBE", "GLACIA", "DRAKE", "WALLACE", "STEVEN")
-
-
-def is_mandatory(tid: str) -> bool:
-    return any(h in tid for h in MANDATORY_HINT) or "GRUNT" in tid
+# The mandatory fights, stated explicitly rather than matched by name.
+#
+# A substring rule looked fine and was wrong: "MATT" matches TRAINER_MATTHEW, a
+# Route 108 swimmer, and "GRUNT" sweeps in every avoidable hideout grunt. These
+# ids were each read out of the map that starts the fight.
+#
+# {rival} and {starter} are substituted the same way the campaign table does it,
+# so the route reflects the trainer's own choices.
+MANDATORY = {
+    "Route 103":                ["TRAINER_{rival}_ROUTE_103_{starter}"],
+    "Petalburg Woods":          ["TRAINER_GRUNT_PETALBURG_WOODS"],
+    "Rustboro Gym":             ["TRAINER_ROXANNE_1"],
+    "Rusturf Tunnel":           ["TRAINER_GRUNT_RUSTURF_TUNNEL"],
+    "Rustboro City (rival 2)":  ["TRAINER_{rival}_RUSTBORO_{starter}"],
+    "Dewford Gym":              ["TRAINER_BRAWLY_1"],
+    "Slateport City":           ["TRAINER_GRUNT_MUSEUM_1", "TRAINER_GRUNT_MUSEUM_2"],
+    "Route 110":                ["TRAINER_{rival}_ROUTE_110_{starter}"],
+    "Mauville City":            ["TRAINER_WALLY_MAUVILLE"],
+    "Mauville Gym":             ["TRAINER_WATTSON_1"],
+    "Mt. Chimney":              ["TRAINER_GRUNT_MT_CHIMNEY_1", "TRAINER_GRUNT_MT_CHIMNEY_2",
+                                 "TRAINER_TABITHA_MT_CHIMNEY", "TRAINER_MAXIE_MT_CHIMNEY"],
+    "Lavaridge Gym":            ["TRAINER_FLANNERY_1"],
+    "Petalburg Gym":            ["TRAINER_NORMAN_1"],
+    "Weather Institute":        ["TRAINER_SHELLY_WEATHER_INSTITUTE"],
+    "Route 119":                ["TRAINER_{rival}_ROUTE_119_{starter}"],
+    "Fortree Gym":              ["TRAINER_WINONA_1"],
+    "Lilycove City":            ["TRAINER_{rival}_LILYCOVE_{starter}"],
+    "Magma Hideout":            ["TRAINER_TABITHA_MAGMA_HIDEOUT", "TRAINER_MAXIE_MAGMA_HIDEOUT"],
+    "Aqua Hideout":             ["TRAINER_MATT"],
+    "Mossdeep Gym":             ["TRAINER_TATE_AND_LIZA_1"],
+    "Space Center":             ["TRAINER_MAXIE_MOSSDEEP", "TRAINER_TABITHA_MOSSDEEP"],
+    "Seafloor Cavern":          ["TRAINER_SHELLY_SEAFLOOR_CAVERN", "TRAINER_ARCHIE"],
+    "Sootopolis Gym":           ["TRAINER_JUAN_1"],
+    "Victory Road":             ["TRAINER_WALLY_VR_1"],
+    "Pokemon League":           ["TRAINER_SIDNEY", "TRAINER_PHOEBE", "TRAINER_GLACIA",
+                                 "TRAINER_DRAKE", "TRAINER_WALLACE"],
+}
 
 
 ALL_MAP_IDS: set[str] = set()
@@ -291,8 +339,24 @@ def main() -> int:
     w("This is normal playthrough order, not speedrun order: the reference\n")
     w("sheet reaches Wattson, Mt. Chimney and Flannery before Brawly, which a\n")
     w("badge-ordered nuzlocke cannot do.\n\n")
-    w("Legend:  [M] mandatory plot fight   [o] optional trainer\n")
-    w("         Encounters list one line per method, deduped, with level range.\n\n")
+    w("Only MANDATORY fights are listed -- the ones a run cannot avoid. Optional\n")
+    w("route trainers are omitted; they are free EXP but also free risk, and the\n")
+    w("agent chooses whether to seek them out. Full list: campaign/extracted.json.\n\n")
+    w("{rival} resolves to MAY or BRENDAN from the trainer's gender, {starter}\n")
+    w("from the starter chosen -- the same substitution the campaign table uses.\n\n")
+
+    # Resolved so a template that stops matching the data fails loudly instead of
+    # quietly dropping a mandatory fight.
+    all_ids = {t["id"] for r in data.values() for t in r["trainers"]}
+    mandatory_by_stop, unresolved = {}, []
+    for stop, ids in MANDATORY.items():
+        out = []
+        for tid in ids:
+            concrete = tid.replace("{rival}", "MAY").replace("{starter}", "TREECKO")
+            if concrete not in all_ids:
+                unresolved.append((stop, tid, concrete))
+            out.append(tid)
+        mandatory_by_stop[stop] = out
 
     seen_trainers: set[str] = set()
     n_stops = n_tr = n_items = 0
@@ -309,6 +373,10 @@ def main() -> int:
             for i in range(0, len(note), 72):
                 w(f"  note: {note[i:i + 72]}\n" if i == 0 else f"        {note[i:i + 72]}\n")
 
+        for tid in mandatory_by_stop.get(label, []):
+            n_tr += 1
+            w(f"  FIGHT  {tid}\n")
+
         for mp in maps:
             rec = data.get(mp)
             if rec is None:
@@ -320,16 +388,6 @@ def main() -> int:
                 w(f"  (no trainers, encounters or items)\n" if known
                   else f"  ! map {mp} not found -- check the name\n")
                 continue
-
-            trs = [t for t in rec["trainers"] if t["id"] not in seen_trainers]
-            seen_trainers.update(t["id"] for t in trs)
-            if trs:
-                w(f"  trainers ({mp}):\n")
-                for t in trs:
-                    n_tr += 1
-                    mark = "[M]" if is_mandatory(t["id"]) else "[o]"
-                    dbl = "  (DOUBLE)" if t["kind"] == "double" else ""
-                    w(f"    {mark} {t['id']}{dbl}\n")
 
             if rec["encounters"]:
                 w(f"  encounters ({mp}):\n")
@@ -352,7 +410,11 @@ def main() -> int:
         w("\n")
 
     w("=" * 78 + "\n")
-    w(f"TOTALS: {n_stops} stops, {n_tr} trainers listed, {n_items} items\n")
+    w(f"TOTALS: {n_stops} stops, {n_tr} mandatory fights, {n_items} items\n")
+    if unresolved:
+        w("\nUNRESOLVED mandatory ids (fix before trusting this table):\n")
+        for stop, tid, concrete in unresolved:
+            w(f"  {stop}: {tid} -> {concrete} not found in the game data\n")
     w("=" * 78 + "\n\n")
     w(UNCERTAINTIES)
     return 0

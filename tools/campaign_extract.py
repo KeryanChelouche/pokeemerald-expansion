@@ -36,6 +36,17 @@ def trainers_for(map_dir: pathlib.Path) -> list[str]:
         return []
     txt = script.read_text(errors="replace")
     seen, out = set(), []
+    # Multi battles are started by their own command, not trainerbattle, so they
+    # are invisible to the loop below. There is exactly one in the game -- Maxie
+    # and Tabitha at the Space Center, fought 2-vs-2 with Steven as partner --
+    # and it is mandatory, so missing it would leave a hole in the route.
+    for m in re.finditer(r"^\s*multi_(\w+)\s+(TRAINER_[A-Z0-9_]+)\s*,[^,]+,\s*"
+                         r"(TRAINER_[A-Z0-9_]+)\s*,[^,]+,\s*(\w+)", txt, re.M):
+        for tid in (m.group(2), m.group(3)):
+            if tid not in seen:
+                seen.add(tid)
+                out.append({"id": tid, "kind": f"multi_{m.group(1)}",
+                            "partner": m.group(4)})
     for m in re.finditer(r"^\s*trainerbattle(\w*)\s+(TRAINER_[A-Z0-9_]+)", txt, re.M):
         kind, tid = m.group(1), m.group(2)
         if "rematch" in kind:

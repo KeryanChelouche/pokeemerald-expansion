@@ -4151,6 +4151,16 @@
   "region_section": "MAPSEC_MOSSDEEP_CITY",
   "trainers": [
    {
+    "id": "TRAINER_MAXIE_MOSSDEEP",
+    "kind": "multi_2_vs_2",
+    "partner": "PARTNER_STEVEN"
+   },
+   {
+    "id": "TRAINER_TABITHA_MOSSDEEP",
+    "kind": "multi_2_vs_2",
+    "partner": "PARTNER_STEVEN"
+   },
+   {
     "id": "TRAINER_GRUNT_SPACE_CENTER_5",
     "kind": "single"
    },
