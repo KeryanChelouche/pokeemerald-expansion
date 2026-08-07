@@ -240,6 +240,24 @@ SOLID
   * Every mandatory id is checked against the game data when this file is
     generated, so a name that stops matching fails loudly.
 
+CAPABILITIES ARE NOW MODELLED
+  Where each HM, rod and the Go Goggles are given comes from the giveitem calls
+  in the map scripts. Which badge each HM needs comes from field_move.c. A
+  capability starts at the later of the two, which matters: Strength is picked up
+  in Rusturf Tunnel but is not usable until Flannery, four badges later.
+
+  Draws are therefore listed in the segment where they first become TAKEABLE,
+  not where the map opens. Route 102 is the clearest case -- its grass draw is in
+  segment 2, its old-rod draw appears when Dewford is reached, its surf draw
+  after Norman, and its good-rod draw at Route 118. One location, four segments.
+
+  Fishing tables are split by rod (slots 0-1 old, 2-4 good, 5-9 super, per
+  ChooseWildMonIndex_Fishing), so an Old Rod is useful immediately instead of the
+  whole table waiting on a Super Rod.
+
+  Gift items now come from the giveitem calls too, which is where every HM, gym
+  TM and rod lives. Item balls and hidden items were never the interesting half.
+
 THE REROUTE
   Brawly is gym 2 here; the sheet fights him after Flannery because it is routed
   for a speedrun. Moving him is not a swap -- Slateport is reachable only by
@@ -282,27 +300,63 @@ NOT SOLID -- needs your judgement
      (single and double only), and R1 has to say what happens when one of
      Steven's Pokemon faints, since they are not the player's.
 
-  6. ITEMS COVER ONLY BALLS AND HIDDEN ITEMS. Every HM, every gym TM and every
-     gift item comes from dialogue scripts and is missing.
+  6. GATES are still my reconstruction rather than flag-verified.
 
-  7. CAPABILITY UNLOCKS ARE STILL NOT MAPPED, which matters more than the items
-     because §7.2 filters draws by capability.
-
-  8. GATES are still my reconstruction rather than flag-verified.
-
-  9. SAFARI ZONE, static and roaming encounters, and the Trick House are not
+  7. SAFARI ZONE, static and roaming encounters, and the Trick House are not
      modelled.
 
- 10. LEVEL CAPS are a rule, not map data, and are not here.
+  8. LEVEL CAPS are a rule, not map data, and are not here.
+
+  9. BERRIES AND SHOPS are not listed. Berry trees are their own object type and
+     shop stock is per-mart; neither is in here.
 
 ==============================================================================
 """
+
+
+# Capabilities, all read from the game rather than recalled.
+#
+# WHERE each item is given comes from the giveitem calls in the map scripts.
+# WHICH BADGE each HM needs comes from field_move.c -- an HM in the bag is not a
+# capability until the badge exists, and for Surf the two are far apart.
+#
+# This matters more than the item lists do: §7.2 filters draws by capability, so
+# without it a segment offers surf and fishing draws that cannot be taken.
+CAPABILITIES = {
+    # name          item                 given at (stop label)     badge needed
+    "CUT":        ("ITEM_HM_CUT",        "Rustboro City",          1),
+    "FLASH":      ("ITEM_HM_FLASH",      "Granite Cave",           2),
+    "ROCK_SMASH": ("ITEM_HM_ROCK_SMASH", "Mauville City",          3),
+    "STRENGTH":   ("ITEM_HM_STRENGTH",   "Rusturf Tunnel",         4),
+    "SURF":       ("ITEM_HM_SURF",       "Petalburg Gym",          5),
+    "FLY":        ("ITEM_HM_FLY",        "Route 119",              6),
+    "DIVE":       ("ITEM_HM_DIVE",       "Mossdeep City",          7),
+    "WATERFALL":  ("ITEM_HM_WATERFALL",  "Sootopolis City",        8),
+    "ROD_OLD":    ("ITEM_OLD_ROD",       "Dewford Town",           0),
+    "ROD_GOOD":   ("ITEM_GOOD_ROD",      "Route 118",              0),
+    "ROD_SUPER":  ("ITEM_SUPER_ROD",     "Mossdeep City",          0),
+    "GO_GOGGLES": ("ITEM_GO_GOGGLES",    "Lavaridge Town",         0),
+}
+
+BADGE_ORDER = ["STONE", "KNUCKLE", "DYNAMO", "HEAT", "BALANCE", "FEATHER",
+               "MIND", "RAIN"]
+
+# Fishing tables hold ten slots split by rod: 0-1 old, 2-4 good, 5-9 super
+# (ChooseWildMonIndex_Fishing, src/wild_encounter.c). Splitting them is what
+# makes an Old Rod useful early instead of the whole table waiting on a Super Rod.
+ROD_SLICES = [("ROD_OLD", 0, 2), ("ROD_GOOD", 2, 5), ("ROD_SUPER", 5, 10)]
+
+# Which capability each draw method needs. Land needs nothing.
+METHOD_CAP = {"water_mons": "SURF", "rock_smash_mons": "ROCK_SMASH"}
 
 METHOD_LABEL = {
     "land_mons": "grass",
     "water_mons": "surf",
     "rock_smash_mons": "rock_smash",
     "fishing_mons": "fishing",
+    "ROD_OLD": "old rod",
+    "ROD_GOOD": "good rod",
+    "ROD_SUPER": "super rod",
 }
 
 
@@ -357,79 +411,111 @@ def main() -> int:
             if concrete not in all_ids:
                 unresolved.append((label, tid, concrete))
 
-    # Segments, not routes. A fight is the only thing that gates progress, so
-    # the file is organised around them: everything reachable before a gate is
-    # listed under that gate, and the gate closes it.
+    # ---- pass 1: number the segments, and work out when things unlock -------
     #
-    # Encounters appear as early as they become available and fights as late as
-    # they can be taken, which is how a run is actually played -- catch first,
-    # then spend the team on the fight that opens the next segment.
-    n_seg = n_tr = n_items = 0
-    pending: list = []
+    # A draw is listed in the segment where it first becomes TAKEABLE, which is
+    # not the segment where the map opens: Route 102's surf draw waits on Surf,
+    # and Surf waits on Norman. Computing that needs the segment numbers first,
+    # hence two passes.
+    stop_seg, badge_seg, seg_gate = {}, {}, []
+    seg = 1
+    for label, maps, gate, badge, mand, note in ORDER:
+        stop_seg.setdefault(label, seg)
+        if badge:
+            badge_seg[BADGE_ORDER.index(badge) + 1] = seg
+        if mand:
+            seg_gate.append((seg, mand, badge, note))
+            seg += 1
+    n_segments = seg
 
-    def flush(gate_fights, badge, gate_note):
-        nonlocal n_seg, n_tr, n_items
-        n_seg += 1
+    cap_seg = {}
+    for cap, (item, at_stop, badge_no) in CAPABILITIES.items():
+        got = stop_seg.get(at_stop, 1)
+        # Held AND usable: the later of picking the item up and earning the badge.
+        need = badge_seg.get(badge_no, 1) if badge_no else 1
+        cap_seg[cap] = max(got, need)
+
+    # ---- pass 2: bucket every draw and item into the segment it opens in ----
+    opens: dict[int, list] = {}
+
+    def add(s, label, kind, text):
+        opens.setdefault(s, []).append((label, kind, text))
+
+    cur = 1
+    for label, maps, gate, badge, mand, note in ORDER:
+        base = stop_seg[label]
+        for mp in maps:
+            rec = data.get(mp)
+            if rec is None:
+                continue
+            for field, mons in rec["encounters"].items():
+                def fmt(ms):
+                    return ", ".join(f"{m['species'].replace('SPECIES_', '')} "
+                                     f"L{m['min']}-{m['max']}" for m in ms)
+                if field == "fishing_mons":
+                    for rod, lo, hi in ROD_SLICES:
+                        part = mons[lo:hi]
+                        if part:
+                            add(max(base, cap_seg[rod]), label,
+                                METHOD_LABEL[rod], fmt(part))
+                else:
+                    cap = METHOD_CAP.get(field)
+                    add(max(base, cap_seg[cap]) if cap else base, label,
+                        METHOD_LABEL.get(field, field), fmt(mons))
+            for key, tag in (("ball", "items"), ("hidden", "hidden"),
+                             ("gift", "gift")):
+                vals = rec["items"].get(key) or []
+                if vals:
+                    add(base, label, tag,
+                        ", ".join(i.replace("ITEM_", "") for i in vals))
+        if note and not mand:
+            add(base, label, "note", note)
+
+    for cap, s in cap_seg.items():
+        item, at_stop, badge_no = CAPABILITIES[cap]
+        why = f"{item.replace('ITEM_', '')} at {at_stop}"
+        if badge_no and badge_seg.get(badge_no, 1) > stop_seg.get(at_stop, 1):
+            why += f" (held earlier; needs badge {badge_no})"
+        add(s, "** CAPABILITY **", cap, why)
+
+    # ---- emit ---------------------------------------------------------------
+    n_tr = n_items = 0
+    for s, mand, badge, gate_note in seg_gate:
         w("#" * 78 + "\n")
-        head = f"SEGMENT {n_seg}"
+        head = f"SEGMENT {s}"
         if badge:
             head += f"        >>> {badge} BADGE <<<"
         w(head + "\n")
         w("#" * 78 + "\n\n")
 
-        if pending:
-            w("  AVAILABLE IN THIS SEGMENT\n")
-            for label, maps, note in pending:
-                shown = False
-                for mp in maps:
-                    rec = data.get(mp)
-                    if rec is None:
-                        continue
-                    if rec["encounters"]:
-                        for field, mons in rec["encounters"].items():
-                            names = ", ".join(
-                                f"{m['species'].replace('SPECIES_', '')} "
-                                f"L{m['min']}-{m['max']}" for m in mons)
-                            w(f"    {label if not shown else '':<22}"
-                              f"{METHOD_LABEL.get(field, field):<11} {names}\n")
-                            shown = True
-                    balls, hidden = rec["items"]["ball"], rec["items"]["hidden"]
-                    n_items += len(balls) + len(hidden)
-                    if balls:
-                        w(f"    {label if not shown else '':<22}"
-                          f"{'items':<11} " + ", ".join(
-                              i.replace("ITEM_", "") for i in balls) + "\n")
-                        shown = True
-                    if hidden:
-                        w(f"    {label if not shown else '':<22}"
-                          f"{'hidden':<11} " + ", ".join(
-                              i.replace("ITEM_", "") for i in hidden) + "\n")
-                        shown = True
-                if not shown:
-                    w(f"    {label:<22}{'--':<11} nothing to catch or pick up\n")
-                if note:
-                    for i, line in enumerate(textwrap.wrap(note, 62)):
+        rows = opens.get(s, [])
+        if rows:
+            w("  AVAILABLE FROM HERE\n")
+            last = None
+            for label, kind, text in rows:
+                if kind == "note":
+                    for i, line in enumerate(textwrap.wrap(text, 62)):
                         w(f"        {'note: ' if i == 0 else '      '}{line}\n")
+                    continue
+                if kind in ("items", "hidden", "gift"):
+                    n_items += len(text.split(","))
+                shown = label if label != last else ""
+                last = label
+                w(f"    {shown[:23]:<24}{kind:<10} {text}\n")
             w("\n")
         else:
-            w("  AVAILABLE IN THIS SEGMENT\n    (nothing new)\n\n")
+            w("  AVAILABLE FROM HERE\n    (nothing new)\n\n")
 
         w("  GATE -- beat this to open the next segment\n")
-        for tid in gate_fights:
+        for tid in mand:
             n_tr += 1
             w(f"    {tid}\n")
         if gate_note:
             for line in textwrap.wrap(gate_note, 68):
                 w(f"      {line}\n")
         w("\n")
-        pending.clear()
 
-    for label, maps, gate, badge, mand, note in ORDER:
-        pending.append((label, maps, note if not mand else ""))
-        if mand:
-            flush(mand, badge, note)
-    if pending:
-        flush([], None, "")
+    n_seg = len(seg_gate)
 
     w("=" * 78 + "\n")
     w(f"TOTALS: {n_seg} segments, {n_tr} mandatory fights, {n_items} items\n")

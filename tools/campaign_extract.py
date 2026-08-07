@@ -60,12 +60,24 @@ def trainers_for(map_dir: pathlib.Path) -> list[str]:
     return out
 
 
-def items_for(mj: dict) -> dict:
+def items_for(mj: dict, map_dir: pathlib.Path) -> dict:
     balls = [o["trainer_sight_or_berry_tree_id"] for o in mj.get("object_events", [])
              if o.get("script") == "Common_EventScript_FindItem"]
     hidden = [b["item"] for b in mj.get("bg_events", [])
               if b.get("type") == "hidden_item"]
-    return {"ball": balls, "hidden": hidden}
+
+    # Gifts come from dialogue, not from an object with an item on it, so they
+    # are invisible to the two lists above. This is where every HM, every gym TM
+    # and the rods live -- the items that actually decide what a run can do.
+    gift, script = [], map_dir / "scripts.inc"
+    if script.exists():
+        seen = set()
+        for m in re.finditer(r"^\s*giveitem\s+(ITEM_[A-Z0-9_]+)",
+                             script.read_text(errors="replace"), re.M):
+            if m.group(1) not in seen:
+                seen.add(m.group(1))
+                gift.append(m.group(1))
+    return {"ball": balls, "hidden": hidden, "gift": gift}
 
 
 def encounters() -> dict:
@@ -105,7 +117,7 @@ def main() -> int:
             "map": mj.get("id"),
             "region_section": mj.get("region_map_section"),
             "trainers": trainers_for(map_dir),
-            "items": items_for(mj),
+            "items": items_for(mj, map_dir),
             "encounters": enc.get(mj.get("id"), {}),
             "connections": [c.get("map") for c in (mj.get("connections") or [])],
         }
