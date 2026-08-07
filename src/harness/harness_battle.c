@@ -227,6 +227,14 @@ bool8 Harness_BattleChoosePokemon(u32 battler)
 {
     if (sHaveDecision[battler] && sDecision[battler].type == HACT_SWITCH)
     {
+        // Consume it. Leaving it set answers the NEXT question with this same
+        // slot, and the next question is often "who replaces the Pokemon that
+        // just fainted?" -- a switch into a low-HP Pokemon that is knocked out
+        // immediately asks exactly that. The engine was then told to send out
+        // the Pokemon that had just fainted, which it cannot do, and the battle
+        // stalled with no error.
+        sHaveDecision[battler] = FALSE;
+
         BtlController_EmitChosenMonReturnValue(battler, B_COMM_TO_ENGINE,
                                               sDecision[battler].slot,
                                               gBattlePartyCurrentOrder);
