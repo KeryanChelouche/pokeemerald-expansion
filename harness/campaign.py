@@ -22,6 +22,7 @@ import json
 import pathlib
 import shutil
 import subprocess
+import tempfile
 import time
 import re
 import struct
@@ -32,6 +33,7 @@ import yaml
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import session as S                                    # noqa: E402
 from ledger import Ledger                              # noqa: E402
+import liveview                                        # noqa: E402
 from play import (BADGE_FLAGS, HACT_BALL, HACT_MOVE, HACT_SWITCH,  # noqa: E402
                   HTARGET_DEFAULT, ITEM_POKE_BALL, METHODS, SPEC_FMT,
                   decode, decode_text, load_charmap, load_names, render)
@@ -986,6 +988,14 @@ class Runner:
         party = build_party([(0x12345678, sp_id, 5, STARTER_MOVES[sp_id])])
         rom_sha1 = json.loads(self.args.symbols.read_text()).get("rom_sha1", "?")
 
+        live_dir = None
+        if self.args.live:
+            live_dir = pathlib.Path(tempfile.mkdtemp(prefix="nuzlocke-live-"))
+            url = liveview.serve(live_dir, self.args.live)
+            if url:
+                print(f"\n  Live view: {url}")
+                print("  (open it in a browser; it refreshes on its own)")
+
         shots = None
         if self.args.video:
             shots = self.args.ledger.parent / "frames"
@@ -997,7 +1007,8 @@ class Runner:
         # every failed attempt, which is most of them in a nuzlocke.
         try:
           with S.Session(self.args.mgba, self.args.rom, self.args.symbols,
-                         shots=shots, every=self.args.every) as sess:
+                         shots=shots, every=self.args.every,
+                         live=live_dir) as sess:
               self.sess = sess
               self.led = Ledger(self.args.ledger, rom_sha1=rom_sha1,
                                 seed=self.args.seed, attempt=self.args.attempt,
@@ -1147,6 +1158,10 @@ def main():
                     help="attempt number, recorded in the ledger header")
     ap.add_argument("--video", type=pathlib.Path,
                     help="record the run to video as it is played")
+    ap.add_argument("--live", nargs="?", type=int, const=8420, default=None,
+                    metavar="PORT",
+                    help="watch the screen in a browser while you play "
+                         "(default port 8420)")
     ap.add_argument("--full-video", action="store_true",
                     help="keep every captured frame; by default held frames "
                          "(fades, waiting message boxes) are dropped")

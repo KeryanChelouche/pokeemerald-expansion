@@ -60,6 +60,8 @@ local READY_FLAG = {ready}
 
 local shotDir = "{shots}"
 local shotEvery = {every}
+local liveDir = "{live}"
+local liveEvery = {liveevery}
 local shot = 0
 
 local n, booted = 0, false
@@ -136,6 +138,14 @@ callbacks:add("frame", function()
   -- Capture the emulator's own output. Frames are only produced while the game
   -- is actually running -- the driver freezes it between commands -- so a
   -- recording contains the run and none of the waiting.
+  -- Live view. Written to a temp name and renamed, so a reader never catches a
+  -- half-written PNG and flickers. Independent of recording: watching and
+  -- recording are different questions and either can be on alone.
+  if liveEvery > 0 and (n % liveEvery) == 0 then
+    emu:screenshot(liveDir .. "/live.tmp.png")
+    os.rename(liveDir .. "/live.tmp.png", liveDir .. "/live.png")
+  end
+
   if shotEvery > 0 and (n % shotEvery) == 0 then
     shot = shot + 1
     emu:screenshot(string.format("%s/%06d.png", shotDir, shot))
@@ -237,11 +247,15 @@ class Session:
 
     def __init__(self, mgba: pathlib.Path, rom: pathlib.Path, symbols: pathlib.Path,
                  timeout: float = 120.0, shots: pathlib.Path | None = None,
-                 every: int = 0):
+                 every: int = 0, live: pathlib.Path | None = None,
+                 live_every: int = 4):
         self.mgba, self.rom, self.timeout = mgba, rom, timeout
         self.shots, self.every = shots, every
+        self.live, self.live_every = live, (live_every if live else 0)
         if shots is not None:
             shots.mkdir(parents=True, exist_ok=True)
+        if live is not None:
+            live.mkdir(parents=True, exist_ok=True)
         syms = json.loads(symbols.read_text())["symbols"]
         for name in ("gHarnessMailbox", "gHarnessTextLog"):
             if name not in syms:
@@ -268,6 +282,7 @@ class Session:
             tsize=TEXTLOG_SIZE, dir=self.dir, c_dec=HCMD_DECISION, spin=SPIN_LIMIT,
             pending=HSTAT_DECISION_PENDING, ready=self.ready,
             shots=(self.shots or "/tmp"), every=self.every,
+            live=(self.live or "/tmp"), liveevery=self.live_every,
             c_battle=HCMD_TRAINER_BATTLE, c_enc=HCMD_ROLL_ENCOUNTER))
         env = dict(os.environ)
         env["LD_LIBRARY_PATH"] = (f"{self.mgba.resolve().parent}:"
