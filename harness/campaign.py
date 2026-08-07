@@ -43,6 +43,15 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 START_CAPABILITIES: set[str] = set()
 
 HERR_NOT_ELIGIBLE = 8      # enum HarnessError in include/harness.h
+HERR_PARTY_FULL = 10
+HERR_BOX_FULL = 11
+HERR_LAST_MON = 12
+
+# Ball stock by badge count. Emerald gates better balls behind mart stock rather
+# than behind a flag, and shop inventories are not in the extracted data, so this
+# is a stated simplification rather than something read from the ROM.
+BALL_UNLOCK = [("ITEM_POKE_BALL", 0), ("ITEM_GREAT_BALL", 1), ("ITEM_ULTRA_BALL", 5)]
+BALL_RESTOCK = 10
 
 OUTCOMES = {1: "won", 2: "lost", 3: "drew", 4: "ran", 6: "it fled", 7: "caught"}
 
@@ -125,6 +134,40 @@ def load_families(root: pathlib.Path, species_names) -> dict[int, int]:
                     union(ids[name], ids[tgt])
 
     return {sid: find(sid) for sid in ids.values()}
+
+
+def load_move_power(root: pathlib.Path) -> dict[str, int]:
+    """MOVE_X -> base power, for the automated smoke policy only.
+
+    The agent is never given this: it reasons from the move names and the state
+    it is shown. This exists so `--auto` can play a run through to the end
+    instead of Tackling a Geodude with a Mudkip that knows Water Gun.
+    """
+    txt = (root / "src/data/moves_info.h").read_text(errors="replace")
+    out = {}
+    for m in re.finditer(r"\[(MOVE_[A-Z0-9_]+)\]\s*=\s*\{(.*?)\n    \},",
+                         txt, re.S):
+        pw = re.search(r"\.power\s*=\s*(\d+)", m.group(2))
+        out[m.group(1)] = int(pw.group(1)) if pw else 0
+    return out
+
+
+def load_tmhm_aliases(root: pathlib.Path, items: dict[str, int]) -> None:
+    """Add ITEM_TM_<MOVE> / ITEM_HM_<MOVE> to the item table.
+
+    Those names are not enum entries: items.h generates them with a macro over
+    FOREACH_TM, so ITEM_TM_BULLET_SEED exists to the compiler but not to a
+    reader of the enum. The list gives the order, and TM n is ITEM_TM<n>.
+    """
+    txt = (root / "include/constants/tms_hms.h").read_text(errors="replace")
+    for macro, tag in (("FOREACH_TM", "TM"), ("FOREACH_HM", "HM")):
+        m = re.search(rf"#define {macro}\(F\)(.*?)(?=\n#define|\n\n)", txt, re.S)
+        if not m:
+            continue
+        for i, name in enumerate(re.findall(r"F\(([A-Z0-9_]+)\)", m.group(1)), 1):
+            base = items.get(f"ITEM_{tag}{i:02d}")
+            if base is not None:
+                items[f"ITEM_{tag}_{name}"] = base
 
 
 def load_constants(path: pathlib.Path, prefix: str) -> dict[str, int]:
@@ -220,6 +263,10 @@ class Runner:
         self.charmap = load_charmap(ROOT / "charmap.txt")
         self.species = load_names(ROOT / "include/constants/species.h", "SPECIES_")
         self.moves = load_names(ROOT / "include/constants/moves.h", "MOVE_")
+        self.move_ids = load_constants(ROOT / "include/constants/moves.h", "MOVE_")
+        self.items = load_constants(ROOT / "include/constants/items.h", "ITEM_")
+        load_tmhm_aliases(ROOT, self.items)
+        self.move_power = load_move_power(ROOT) if self.args.auto else {}
         self.trainers = load_constants(ROOT / "include/constants/opponents.h", "TRAINER_")
         self.mapsecs = load_constants(ROOT / "include/constants/region_map_sections.h",
                                       "MAPSEC_")
@@ -230,6 +277,8 @@ class Runner:
         self.capabilities = set(START_CAPABILITIES)
         self.starter = None
         self.gender, self.player_name, self.rival = MALE, "?", "MAY"
+        self.bag: dict[str, int] = {}      # what the harness has put in the bag
+        self.badges = 0
         self.last_was_dupe = False
         self.last_caught_species = 0
         self.team = []                       # [(nickname, species_name)]
@@ -289,7 +338,31 @@ class Runner:
                 continue
             need = nd.get("unlocked_by")
             if need is None or need in self.beaten:
-                out.append(nd)
+                # Unlocked is not the same as spendable. Petalburg City has only
+                # surf and fishing draws, so before the rods and Surf arrive it
+                # is reachable but offers nothing -- and offering it as a choice
+                # that cannot be taken is what let an automated run pick it
+                # forever.
+                avail, _ = self.draws(nd)
+                if avail:
+                    out.append(nd)
+        return out
+
+    def waiting_locations(self, nodes):
+        """Unlocked and unspent, but every draw still capability-locked.
+
+        Shown but not offered: knowing Petalburg City is waiting on a rod is what
+        makes delaying an encounter a considered choice rather than a surprise.
+        """
+        out = []
+        for nd in nodes:
+            if nd["kind"] != "location" or nd["mapsec"] in self.spent:
+                continue
+            need = nd.get("unlocked_by")
+            if need is None or need in self.beaten:
+                avail, locked = self.draws(nd)
+                if not avail and locked:
+                    out.append((nd, locked))
         return out
 
     def draws(self, nd):
@@ -305,15 +378,26 @@ class Runner:
             print(f"   | {line}")
 
     def level_cap(self, nodes):
-        """R8: the cap is the next fight's highest level.
+        """R8: the cap is the next GYM LEADER's ace.
 
-        With free ordering the agent chooses when to take a fight, so the cap
-        tracks the pending fight rather than a fixed schedule position.
+        Not the next fight's highest level. Capping on the next fight is
+        incoherent, because the trainers on the route after a gym are weaker than
+        the leader just beaten -- so the cap would fall after every badge, and a
+        team allowed Lv10 for Josh would face Roxanne's Lv15 Nosepass with no
+        legal way to prepare for it.
+
+        Past the last gym the same rule reads naturally as one cap per remaining
+        fight, which is what the Elite Four and the Champion each get.
         """
-        fight = self.next_fight(nodes)
-        if fight is None:
+        pending = [n for n in nodes
+                   if n["kind"] == "trainer_battle" and n["id"] not in self.beaten]
+        if not pending:
             return None
-        return max(m["level"] for m in self.rosters[fight["trainer_resolved"]]["mons"])
+        pending.sort(key=lambda n: n["order"])
+
+        gym = next((n for n in pending if n.get("badge")), None)
+        source = gym or pending[0]
+        return max(m["level"] for m in self.rosters[source["trainer_resolved"]]["mons"])
 
     def level_to_cap(self, sess, nodes):
         cap = self.level_cap(nodes)
@@ -465,6 +549,123 @@ class Runner:
                   f"Lv{lv:<3} HP {hp:>3}/{mx:<3} "
                   f"{'' if alive else '(fainted)'}  family={fam}")
 
+    def give(self, sess, item, count=1):
+        """Put an item in the bag and remember it.
+
+        §4.6 locks the bag from the agent, so everything in it was placed by the
+        harness -- which means the driver already knows the contents and does not
+        need to read them back."""
+        sess.run(S.HCMD_GIVE_ITEM, struct.pack("<HH", self.items[item], count))
+        self.bag[item] = self.bag.get(item, 0) + count
+
+    def restock_balls(self, sess):
+        """Top up the best balls the badge count allows.
+
+        Better balls are the main lever a run has on catch rate, and a nuzlocke
+        gets one throw per location -- so which ball is thrown is a real decision
+        rather than bookkeeping."""
+        for item, need in BALL_UNLOCK:
+            if self.badges >= need and self.bag.get(item, 0) < BALL_RESTOCK:
+                self.give(sess, item, BALL_RESTOCK - self.bag.get(item, 0))
+
+    def balls_available(self):
+        return [i for i, need in BALL_UNLOCK
+                if self.badges >= need and self.bag.get(i, 0) > 0]
+
+    def read_box(self, sess):
+        out, _ = sess.run(S.HCMD_DUMP_BOX)
+        if len(out) < 4:
+            return []
+        n = struct.unpack_from("<I", out, 0)[0]
+        mons = []
+        for i in range(n):
+            off = 4 + i * 24
+            sp, hp, mx, lv = struct.unpack_from("<HHHB", out, off)
+            nick = decode_text(out[off + 8:off + 8 + NAME_LEN + 1], self.charmap)
+            mons.append({"species": sp, "hp": hp, "maxhp": mx, "level": lv,
+                         "nick": nick[0] if nick else "?"})
+        return mons
+
+    def box(self, sess):
+        """Storage. R1 forbids releasing and sixteen segments offer far more than
+        six encounters, so everything caught has to go somewhere."""
+        while True:
+            party = self.read_party(sess)
+            stored = self.read_box(sess)
+            print(f"\n  Party ({len(party)}/6):")
+            for i, m in enumerate(party, 1):
+                print(f"    {i}) {m['nick']:<12} {self.species.get(m['species'], '?'):<12} "
+                      f"Lv{m['level']:<3} {m['hp']}/{m['maxhp']}")
+            print(f"  Box ({len(stored)} stored):")
+            for i, m in enumerate(stored, 1):
+                print(f"    {i}) {m['nick']:<12} {self.species.get(m['species'], '?'):<12} "
+                      f"Lv{m['level']:<3} {m['hp']}/{m['maxhp']}")
+            if not stored:
+                print("    (empty)")
+
+            pk = input("  (d)eposit N, (w)ithdraw N, or (b)ack: ").strip().lower()
+            if pk in ("b", "back", ""):
+                return
+            try:
+                what, n = pk.split()
+                n = int(n) - 1
+            except ValueError:
+                print("  give a slot number, e.g. 'd 2'")
+                continue
+            try:
+                if what.startswith("d"):
+                    sess.run(S.HCMD_BOX_DEPOSIT, struct.pack("<B3x", n))
+                    print("  deposited")
+                elif what.startswith("w"):
+                    sess.run(S.HCMD_BOX_WITHDRAW, struct.pack("<B3x", n))
+                    print("  withdrawn")
+            except S.SessionError as e:
+                code = getattr(e, "code", None)
+                if HERR_LAST_MON in (code,) or "12" in str(e):
+                    print("  the party cannot be emptied -- R9 ends the run there")
+                elif HERR_PARTY_FULL in (code,) or "10" in str(e):
+                    print("  party is full; deposit someone first")
+                else:
+                    print(f"  {e}")
+
+    def teach_tm(self, sess):
+        """TMs are reusable in this expansion, so a TM is a permanent upgrade to
+        the whole party rather than a one-shot decision."""
+        tms = sorted(i for i in self.bag if i.startswith("ITEM_TM_"))
+        if not tms:
+            print("  no TMs yet")
+            return
+        party = self.read_party(sess)
+        print("\n  Teach which TM?")
+        for i, tm in enumerate(tms, 1):
+            print(f"    {i}) {tm.replace('ITEM_TM_', '').replace('_', ' ').title()}")
+        pk = input(f"  Choose [1-{len(tms)}] or (b)ack: ").strip().lower()
+        if not pk.isdigit() or not 1 <= int(pk) <= len(tms):
+            return
+        tm = tms[int(pk) - 1]
+        # ITEM_TM_ROCK_TOMB -> MOVE_ROCK_TOMB. The names line up exactly, so no
+        # lookup table is needed and none can go stale.
+        move_name = "MOVE_" + tm.replace("ITEM_TM_", "")
+        if move_name not in self.move_ids:
+            print(f"  {move_name} is not a move id")
+            return
+
+        for i, m in enumerate(party, 1):
+            print(f"    {i}) {m['nick']:<12} {self.species.get(m['species'], '?')}")
+        who = input(f"  Teach to [1-{len(party)}]: ").strip()
+        if not who.isdigit() or not 1 <= int(who) <= len(party):
+            return
+        slot = int(who) - 1
+        out, _ = sess.run(S.HCMD_TEACH_MOVE,
+                          struct.pack("<BBH", slot, 4, self.move_ids[move_name]))
+        if out and out[0] == 1:
+            print("  all four slots are full -- pick one to overwrite")
+            self.resolve_pending(sess, slot, party[slot]["nick"],
+                                 [self.move_ids[move_name]])
+        else:
+            print(f"  {party[slot]['nick']} learned "
+                  f"{move_name.replace('MOVE_', '').replace('_', ' ').title()}")
+
     def show_graveyard(self):
         if not self.graveyard:
             return
@@ -532,6 +733,21 @@ class Runner:
                 self.last_was_dupe = True
 
         menu = render(r)
+
+        # render() offers a single Poke Ball because it cannot see the bag. The
+        # driver put everything in there (§4.6 locks it from the agent), so it
+        # knows the real choices and expands that one entry into them. Which ball
+        # to spend is a genuine decision: a nuzlocke gets one throw per location.
+        ball_at = next((i for i, (_, act) in enumerate(menu)
+                        if act[0] == HACT_BALL), None)
+        if ball_at is not None:
+            balls = self.balls_available()
+            if balls:
+                menu[ball_at:ball_at + 1] = [
+                    (f"Throw  {b.replace('ITEM_', '').replace('_', ' '):<14}"
+                     f"x{self.bag[b]}",
+                     (HACT_BALL, self.items[b] & 0xFF, self.items[b] >> 8))
+                    for b in balls]
         me = r["battlers"].get(r["battler"])
         foe = r["battlers"].get(1)
         if self.led is not None:
@@ -550,8 +766,8 @@ class Runner:
                            text=decode_text(txt, self.charmap))
 
         if self.args.auto:
-            print(f" auto-> {menu[0][0]}")
-            chosen = 0
+            chosen = self.auto_pick(menu)
+            print(f" auto-> {menu[chosen][0]}")
         else:
             while True:
                 pick = input(f" Choose [1-{len(menu)}] (q to quit): ").strip()
@@ -563,9 +779,38 @@ class Runner:
                     break
             print(f"  -> {menu[chosen][0]}")
         act_kind, slot, target = menu[chosen][1]
+        if act_kind == HACT_BALL:
+            thrown = next((i for i, v in self.items.items()
+                           if v == (slot | (target << 8)) and i in self.bag), None)
+            if thrown:
+                self.bag[thrown] -= 1
         self.log("decision", turn=self.turn, action=menu[chosen][0],
                  index=chosen, act=act_kind, slot=slot, target=target)
         return menu[chosen][1]
+
+    def auto_pick(self, menu):
+        """The smoke policy: throw a ball if one is offered, otherwise use the
+        strongest damaging move.
+
+        Not a strategy and not what the agent does -- it exists so an unattended
+        run reaches Norman instead of stalling on the first Geodude. Picking
+        option one every time meant a Mudkip Tackled a rock type for four turns.
+        """
+        ball = next((i for i, (lbl, act) in enumerate(menu)
+                     if act[0] == HACT_BALL), None)
+        if ball is not None:
+            return ball
+
+        best, best_pw = 0, -1
+        for i, (label, act) in enumerate(menu):
+            if act[0] != HACT_MOVE:
+                continue
+            name = label.split()[1] if len(label.split()) > 1 else ""
+            key = "MOVE_" + name.upper().replace("-", "_")
+            pw = self.move_power.get(key, 0)
+            if pw > best_pw:
+                best, best_pw = i, pw
+        return best
 
     def ask_nickname(self, what, default):
         if self.args.auto:
@@ -600,12 +845,25 @@ class Runner:
             self.log("run_end", cause="whiteout")
             raise SystemExit("  whiteout — the run ends here (R9)")
         self.beaten.add(nd["id"])
+        if nd.get("badge"):
+            self.badges += 1
+            print(f"  == {nd['badge']} BADGE ==   ({self.badges} of 8)")
+        for cap in nd.get("grants", []):
+            if cap not in self.capabilities:
+                self.capabilities.add(cap)
+                print(f"  == unlocked: {cap} ==  new draws may now be available")
+        for item in nd.get("gives_items", []):
+            self.give(sess, item)
+            print(f"  received {item.replace('ITEM_', '')}")
+        self.restock_balls(sess)
 
     def do_location(self, sess, nd):
+        """Returns False when nothing could be spent, so a caller that picks
+        automatically does not choose the same location again forever."""
         avail, _ = self.draws(nd)
         if not avail:
             print(f"  {nd['mapsec']} has no available draw; nothing to spend.")
-            return
+            return False
         draw = avail[0]
         if len(avail) > 1 and not self.args.auto:
             print("\n  Which draw spends this location?")
@@ -650,16 +908,28 @@ class Runner:
             print("  location remains open (dupe)")
 
         if code == 7:
-            slot = self.party_slots
-            self.party_slots += 1
+            # Read the slot back rather than counting catches. Once the box can
+            # move Pokemon in and out, a running tally is wrong the moment
+            # anything is deposited, and the nickname would land on the wrong
+            # Pokemon.
+            party_now = self.read_party(sess)
+            slot = len(party_now) - 1
+            self.party_slots = len(party_now)
             self.owned_families.add(self.family(self.last_caught_species))
             nick = self.ask_nickname("new catch", f"CAUGHT{slot}")
             sess.run(S.HCMD_SET_NICKNAME, nickname_payload(slot, nick, self.charmap))
-            self.team.append((nick, nd["mapsec"]))
+            self.team.append((nick, self.species.get(self.last_caught_species,
+                                                     str(self.last_caught_species))))
             self.log("catch", nickname=nick, location=nd["mapsec"],
                      species=self.species.get(self.last_caught_species,
                                               str(self.last_caught_species)))
             print(f"  {nick} joins the team in slot {slot + 1}")
+
+            # A seventh catch has nowhere to go. The engine puts it straight in
+            # storage, so say where it went rather than leaving the agent to
+            # notice it is missing from the party.
+            if len(self.read_party(sess)) >= 6:
+                print(f"  the party is full -- use (b)ox to swap {nick} in")
 
     # -- the loop -----------------------------------------------------------
     def pick_trainer(self):
@@ -748,6 +1018,7 @@ class Runner:
               self.log("trainer", name=name,
                        gender="male" if gender == MALE else "female",
                        rival=self.rival)
+              self.restock_balls(sess)
               self.log("starter", species=self.species.get(sp_id, str(sp_id)),
                        species_id=sp_id, level=5, moves=STARTER_MOVES[sp_id],
                        nickname=starter_nick)
@@ -772,15 +1043,34 @@ class Runner:
                       options.append(("loc", nd))
                       for i, line in enumerate(self.describe_location(nd)):
                           print(f"  {len(options)}) {line}" if i == 0 else f"     {line}")
+                  for nd_w, locked in self.waiting_locations(nodes):
+                      why = ", ".join(sorted({c for _, cs in locked for c in cs}))
+                      print(f"     --  {nd_w['mapsec']} is open but needs {why}")
                   self.show_state()
 
                   if self.args.auto:
-                      kind, nd = options[0]
+                      # Smoke-test policy, not a strategy: spend every available
+                      # location, then level to the cap before fighting. Taking
+                      # the first option every time simply dies at the third
+                      # fight, which tests nothing past the opening.
+                      loc = next((o for o in options if o[0] == "loc"), None)
+                      if loc is not None:
+                          kind, nd = loc
+                      else:
+                          self.level_to_cap(sess, nodes)
+                          sess.run(S.HCMD_HEAL)
+                          kind, nd = options[0]
                   else:
                       while True:
                           pk = input(f"\n  Choose [1-{len(options)}], (s)ummary, "
-                                     f"(l)evel, (e)volve, (a)rrange, (h)eal, "
-                                     f"(q)uit: ").strip().lower()
+                                     f"(l)evel, (e)volve, (a)rrange, (b)ox, "
+                                     f"(t)m, (h)eal, (q)uit: ").strip().lower()
+                          if pk in ("b", "box"):
+                              self.box(sess)
+                              continue
+                          if pk in ("t", "tm"):
+                              self.teach_tm(sess)
+                              continue
                           if pk in ("s", "summary"):
                               self.summary(sess)
                               continue

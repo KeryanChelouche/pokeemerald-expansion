@@ -14,6 +14,8 @@
 #include "pokedex.h"
 #include "random.h"
 #include "wild_encounter.h"
+#include "pokemon_storage_system.h"
+#include "item.h"
 #include "script_pokemon_util.h"
 #include "task.h"
 #include "constants/battle.h"
@@ -478,6 +480,154 @@ static void Harness_SetLevel(void)
 //
 // The referee decides who is dead and keeps the graveyard; this only carries out
 // the removal.
+// The bag. Balls, TMs and held items are the three item classes a run actually
+// decides between; everything else in Emerald's item list is navigation or
+// convenience the harness does not use.
+static void Harness_GiveItem(void)
+{
+    const struct HarnessGiveItemArg *arg =
+        (const struct HarnessGiveItemArg *)gHarnessMailbox.payloadIn;
+
+    if (gHarnessMailbox.payloadInLen < sizeof(*arg))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+    if (!AddBagItem(arg->item, arg->count ? arg->count : 1))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+    Harness_Ok(0);
+}
+
+// Storage. Sixteen segments offer far more than six encounters and R1 forbids
+// releasing, so a run without a box stops at the sixth catch.
+static void Harness_BoxDeposit(void)
+{
+    const struct HarnessBoxArg *arg =
+        (const struct HarnessBoxArg *)gHarnessMailbox.payloadIn;
+    u32 count = CalculatePlayerPartyCount();
+
+    if (gHarnessMailbox.payloadInLen < sizeof(*arg))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+    if (arg->slot >= count || GetMonData(&gPlayerParty[arg->slot], MON_DATA_SPECIES) == SPECIES_NONE)
+    {
+        Harness_Fail(HERR_BAD_SLOT);
+        return;
+    }
+    // R9 ends the run when the party is empty, so the party must never be
+    // emptied by a deposit -- that would end it by bookkeeping rather than by
+    // losing a battle.
+    if (count <= 1)
+    {
+        Harness_Fail(HERR_LAST_MON);
+        return;
+    }
+    if (CopyMonToPC(&gPlayerParty[arg->slot]) != MON_GIVEN_TO_PC)
+    {
+        Harness_Fail(HERR_BOX_FULL);
+        return;
+    }
+
+    ZeroMonData(&gPlayerParty[arg->slot]);
+    CompactPartySlots();
+    CalculatePlayerPartyCount();
+    Harness_Ok(0);
+}
+
+// Storage is addressed as one flat list in fill order, not as box/position: the
+// agent picks from what HCMD_DUMP_BOX reported, and boxes are a UI detail it
+// never sees.
+static struct BoxPokemon *Harness_NthStored(u32 want, u32 *seen)
+{
+    u32 box, pos;
+
+    *seen = 0;
+    for (box = 0; box < TOTAL_BOXES_COUNT; box++)
+    {
+        for (pos = 0; pos < IN_BOX_COUNT; pos++)
+        {
+            struct BoxPokemon *mon = GetBoxedMonPtr(box, pos);
+
+            if (GetBoxMonData(mon, MON_DATA_SPECIES) == SPECIES_NONE)
+                continue;
+            if (*seen == want)
+                return mon;
+            (*seen)++;
+        }
+    }
+    return NULL;
+}
+
+static void Harness_BoxWithdraw(void)
+{
+    const struct HarnessBoxArg *arg =
+        (const struct HarnessBoxArg *)gHarnessMailbox.payloadIn;
+    u32 count = CalculatePlayerPartyCount();
+    struct BoxPokemon *stored;
+    u32 seen;
+
+    if (gHarnessMailbox.payloadInLen < sizeof(*arg))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+    if (count >= PARTY_SIZE)
+    {
+        Harness_Fail(HERR_PARTY_FULL);
+        return;
+    }
+
+    stored = Harness_NthStored(arg->slot, &seen);
+    if (stored == NULL)
+    {
+        Harness_Fail(HERR_BAD_SLOT);
+        return;
+    }
+
+    BoxMonToMon(stored, &gPlayerParty[count]);
+    ZeroBoxMonData(stored);
+    CalculatePlayerPartyCount();
+    Harness_Ok(0);
+}
+
+static void Harness_DumpBox(void)
+{
+    struct HarnessBoxReport *out =
+        (struct HarnessBoxReport *)gHarnessMailbox.payloadOut;
+    u32 box, pos, n = 0;
+
+    for (box = 0; box < TOTAL_BOXES_COUNT && n < HARNESS_BOX_REPORT_MAX; box++)
+    {
+        for (pos = 0; pos < IN_BOX_COUNT && n < HARNESS_BOX_REPORT_MAX; pos++)
+        {
+            struct BoxPokemon *mon = GetBoxedMonPtr(box, pos);
+            struct Pokemon tmp;
+
+            if (GetBoxMonData(mon, MON_DATA_SPECIES) == SPECIES_NONE)
+                continue;
+
+            // Through a real Pokemon so HP and stats come from the engine's own
+            // calculation rather than being recomputed here.
+            BoxMonToMon(mon, &tmp);
+            out->mons[n].species = GetMonData(&tmp, MON_DATA_SPECIES);
+            out->mons[n].hp = GetMonData(&tmp, MON_DATA_HP);
+            out->mons[n].maxhp = GetMonData(&tmp, MON_DATA_MAX_HP);
+            out->mons[n].level = GetMonData(&tmp, MON_DATA_LEVEL);
+            out->mons[n].padding = 0;
+            GetMonData(&tmp, MON_DATA_NICKNAME, out->mons[n].nickname);
+            n++;
+        }
+    }
+
+    out->count = n;
+    Harness_Ok(sizeof(out->count) + n * sizeof(out->mons[0]));
+}
+
 static void Harness_Release(void)
 {
     const struct HarnessSetLevelArg *arg =
@@ -886,8 +1036,19 @@ void Task_HarnessDispatch(u8 taskId)
         if (sBattlePending)
             return;
         break;
-    case HCMD_ATTEMPT_CATCH:
     case HCMD_GIVE_ITEM:
+        Harness_GiveItem();
+        break;
+    case HCMD_BOX_DEPOSIT:
+        Harness_BoxDeposit();
+        break;
+    case HCMD_BOX_WITHDRAW:
+        Harness_BoxWithdraw();
+        break;
+    case HCMD_DUMP_BOX:
+        Harness_DumpBox();
+        break;
+    case HCMD_ATTEMPT_CATCH:
     case HCMD_DECISION:
         Harness_Fail(HERR_NOT_IMPLEMENTED);
         break;

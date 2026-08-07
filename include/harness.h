@@ -44,6 +44,9 @@ enum HarnessCommand
     HCMD_DECISION,              // reply to a decision request
     HCMD_SET_NICKNAME,          // R5: every caught Pokemon must be named
     HCMD_SET_PLAYER,            // trainer name and gender: identity per attempt
+    HCMD_BOX_DEPOSIT,           // party slot -> PC
+    HCMD_BOX_WITHDRAW,          // PC -> party
+    HCMD_DUMP_BOX,              // what is in storage
     HCMD_COUNT,
 };
 
@@ -59,6 +62,10 @@ enum HarnessError
     HERR_BAD_SLOT,              // party slot out of range or empty
     HERR_NOT_ELIGIBLE,          // nothing to evolve into right now
     HERR_BAD_ORDER,             // party_arrange order is not a permutation
+    HERR_PARTY_FULL,            // six in the party already
+    HERR_BOX_FULL,              // no free storage slot
+    HERR_LAST_MON,              // R9 needs one Pokemon in the party at all times
+    HERR_NO_ITEM,               // the bag does not hold that item
 };
 
 // Field offsets are part of the wire contract. Do not reorder without
@@ -251,6 +258,46 @@ struct HarnessPlayerArg
     u8 gender;                              // MALE or FEMALE
     u8 padding[3];
     u8 name[PLAYER_NAME_LENGTH + 1];
+};
+
+// HCMD_GIVE_ITEM payload. Items matter for three things a run actually decides:
+// which ball is thrown, which TM is taught, and which held item is carried.
+struct HarnessGiveItemArg
+{
+    u16 item;
+    u16 count;
+};
+
+// HCMD_BOX_DEPOSIT / HCMD_BOX_WITHDRAW payload.
+//
+// The box is what makes a full run possible at all: sixteen segments offer far
+// more than six encounters, and R1 forbids releasing, so everything caught has
+// to go somewhere.
+struct HarnessBoxArg
+{
+    u8 slot;                                // party slot, or box index
+    u8 padding[3];
+};
+
+// One stored Pokemon, as HCMD_DUMP_BOX reports it. Deliberately smaller than
+// HarnessPartyView: choosing who to withdraw needs species, level and health,
+// not the full battle-facing record.
+struct HarnessBoxView
+{
+    u16 species;
+    u16 hp;
+    u16 maxhp;
+    u8 level;
+    u8 padding;
+    u8 nickname[POKEMON_NAME_LENGTH + 1];
+};
+
+#define HARNESS_BOX_REPORT_MAX 30
+
+struct HarnessBoxReport
+{
+    u32 count;                              // how many are stored
+    struct HarnessBoxView mons[HARNESS_BOX_REPORT_MAX];
 };
 
 // HCMD_TEACH_MOVE payload. `forgetSlot` is ignored unless all four move slots
