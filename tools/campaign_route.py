@@ -54,7 +54,7 @@ ORDER = [
     ("Petalburg City", ["PETALBURG_CITY"], "rival_route_103", None, [],
      "Norman refuses the gym until four badges."),
     ("Route 104 (south)", ["ROUTE104"], "rival_route_103", None, [],
-     "UNSURE: one map covers the southern and northern halves."),
+     "Same MAPSEC as the northern half, so the two share one encounter."),
     ("Petalburg Woods", ["PETALBURG_WOODS"], "route_104_south", None,
      ["TRAINER_GRUNT_PETALBURG_WOODS"],
      "NOT IN THE SHEET but kept: this grunt blocks the Devon researcher scene "
@@ -292,8 +292,11 @@ NOT SOLID -- needs your judgement
      which is when the route is actually crossed on the way to Route 119. Either
      works; it is an EXP-timing choice, not a correctness one.
 
-  4. ROUTE 104 AND ROUTE 111 are each one map spanning two differently-gated
-     halves. R2 gives one encounter per location, so this needs a ruling.
+  4. ROUTE 104 AND ROUTE 111 span two differently-gated halves each. Now
+     RESOLVED by keying the one-encounter rule on the MAPSEC rather than on the
+     stop: both halves of Route 104 are MAPSEC_ROUTE_104 and share a single
+     encounter, so the northern half shows as "only if unspent". Flagged only
+     because the halves still appear as separate stops for ordering.
 
   5. THE SPACE CENTER FIGHT IS A MULTI BATTLE -- Maxie and Tabitha 2-vs-2 with
      Steven as partner, the only one in the game. The harness cannot run it
@@ -390,6 +393,14 @@ def main() -> int:
     w("This is normal playthrough order, not speedrun order: the reference\n")
     w("sheet reaches Wattson, Mt. Chimney and Flannery before Brawly, which a\n")
     w("badge-ordered nuzlocke cannot do.\n\n")
+    w("ONE ENCOUNTER PER LOCATION, FOR THE WHOLE RUN (R2). A location listed in\n")
+    w("several segments is not several chances at it. The later rows are the draws\n")
+    w("that become reachable IF the location was deliberately left unspent -- they\n")
+    w("are marked \"only if unspent\". Taking the grass encounter in an early\n")
+    w("segment closes that location permanently, surf and rods included.\n\n")
+    w("Banking a location is therefore a real strategic option: Route 102 spent on\n")
+    w("grass gives a Lv3 Poochyena, and held until Surf gives a Lv20-30 Marill.\n")
+    w("The cost is running those segments a Pokemon short.\n\n")
     w("Structured by GATE, not by route. A fight is the only thing that gates\n")
     w("progress, so everything reachable before a fight is listed under it and the\n")
     w("fight closes the segment. Encounters appear as early as they are available\n")
@@ -438,16 +449,18 @@ def main() -> int:
     # ---- pass 2: bucket every draw and item into the segment it opens in ----
     opens: dict[int, list] = {}
 
-    def add(s, label, kind, text):
-        opens.setdefault(s, []).append((label, kind, text))
+    def add(s, label, kind, text, sec=None):
+        opens.setdefault(s, []).append((label, kind, text, sec))
 
-    cur = 1
+    first_seen: dict[str, int] = {}
+
     for label, maps, gate, badge, mand, note in ORDER:
         base = stop_seg[label]
         for mp in maps:
             rec = data.get(mp)
             if rec is None:
                 continue
+            sec = rec.get("region_section") or mp
             for field, mons in rec["encounters"].items():
                 def fmt(ms):
                     return ", ".join(f"{m['species'].replace('SPECIES_', '')} "
@@ -456,12 +469,14 @@ def main() -> int:
                     for rod, lo, hi in ROD_SLICES:
                         part = mons[lo:hi]
                         if part:
-                            add(max(base, cap_seg[rod]), label,
-                                METHOD_LABEL[rod], fmt(part))
+                            s = max(base, cap_seg[rod])
+                            first_seen[sec] = min(first_seen.get(sec, s), s)
+                            add(s, label, METHOD_LABEL[rod], fmt(part), sec)
                 else:
                     cap = METHOD_CAP.get(field)
-                    add(max(base, cap_seg[cap]) if cap else base, label,
-                        METHOD_LABEL.get(field, field), fmt(mons))
+                    s = max(base, cap_seg[cap]) if cap else base
+                    first_seen[sec] = min(first_seen.get(sec, s), s)
+                    add(s, label, METHOD_LABEL.get(field, field), fmt(mons), sec)
             for key, tag in (("ball", "items"), ("hidden", "hidden"),
                              ("gift", "gift")):
                 vals = rec["items"].get(key) or []
@@ -492,7 +507,7 @@ def main() -> int:
         if rows:
             w("  AVAILABLE FROM HERE\n")
             last = None
-            for label, kind, text in rows:
+            for label, kind, text, sec in rows:
                 if kind == "note":
                     for i, line in enumerate(textwrap.wrap(text, 62)):
                         w(f"        {'note: ' if i == 0 else '      '}{line}\n")
@@ -501,7 +516,12 @@ def main() -> int:
                     n_items += len(text.split(","))
                 shown = label if label != last else ""
                 last = label
-                w(f"    {shown[:23]:<24}{kind:<10} {text}\n")
+                # R2 gives a location ONE encounter for the whole run. A method
+                # that opens in a later segment is not a second chance -- it is
+                # only reachable if the location was deliberately left unspent.
+                held = (sec is not None and first_seen.get(sec, s) < s)
+                mark = "  <- only if unspent" if held else ""
+                w(f"    {shown[:23]:<24}{kind:<10} {text}{mark}\n")
             w("\n")
         else:
             w("  AVAILABLE FROM HERE\n    (nothing new)\n\n")

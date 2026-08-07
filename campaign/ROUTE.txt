@@ -11,6 +11,16 @@ This is normal playthrough order, not speedrun order: the reference
 sheet reaches Wattson, Mt. Chimney and Flannery before Brawly, which a
 badge-ordered nuzlocke cannot do.
 
+ONE ENCOUNTER PER LOCATION, FOR THE WHOLE RUN (R2). A location listed in
+several segments is not several chances at it. The later rows are the draws
+that become reachable IF the location was deliberately left unspent -- they
+are marked "only if unspent". Taking the grass encounter in an early
+segment closes that location permanently, surf and rods included.
+
+Banking a location is therefore a real strategic option: Route 102 spent on
+grass gives a Lv3 Poochyena, and held until Surf gives a Lv20-30 Marill.
+The cost is running those segments a Pokemon short.
+
 Structured by GATE, not by route. A fight is the only thing that gates
 progress, so everything reachable before a fight is listed under it and the
 fight closes the segment. Encounters appear as early as they are available
@@ -62,7 +72,8 @@ SEGMENT 3
                             items      PP_UP, POKE_BALL, X_ACCURACY, POTION
                             hidden     SUPER_POTION, POKE_BALL, POTION, ANTIDOTE, HEART_SCALE
                             gift       CHESTO_BERRY, WHITE_HERB, TM_BULLET_SEED
-        note: UNSURE: one map covers the southern and northern halves.
+        note: Same MAPSEC as the northern half, so the two share one
+              encounter.
     Petalburg Woods         grass      POOCHYENA L5-5, WURMPLE L5-5, SHROOMISH L5-5, SILCOON L5-5, CASCOON L5-5, TAILLOW L5-5, SLAKOTH L5-5
                             items      GREAT_BALL, X_ATTACK, ETHER, PARALYZE_HEAL
                             hidden     POTION, TINY_MUSHROOM, TINY_MUSHROOM, POKE_BALL
@@ -78,7 +89,7 @@ SEGMENT 4        >>> STONE BADGE <<<
 ##############################################################################
 
   AVAILABLE FROM HERE
-    Route 104 (north)       grass      POOCHYENA L4-4, WURMPLE L4-4, MARILL L5-5, TAILLOW L4-4, WINGULL L4-4
+    Route 104 (north)       grass      POOCHYENA L4-4, WURMPLE L4-4, MARILL L5-5, TAILLOW L4-4, WINGULL L4-4  <- only if unspent
                             items      PP_UP, POKE_BALL, X_ACCURACY, POTION
                             hidden     SUPER_POTION, POKE_BALL, POTION, ANTIDOTE, HEART_SCALE
                             gift       CHESTO_BERRY, WHITE_HERB, TM_BULLET_SEED
@@ -137,11 +148,11 @@ SEGMENT 8        >>> KNUCKLE BADGE <<<
 ##############################################################################
 
   AVAILABLE FROM HERE
-    Route 103               old rod    MAGIKARP L5-10, TENTACOOL L5-10
-    Route 102               old rod    MAGIKARP L5-10, GOLDEEN L5-10
+    Route 103               old rod    MAGIKARP L5-10, TENTACOOL L5-10  <- only if unspent
+    Route 102               old rod    MAGIKARP L5-10, GOLDEEN L5-10  <- only if unspent
     Petalburg City          old rod    MAGIKARP L5-10, GOLDEEN L5-10
-    Route 104 (south)       old rod    MAGIKARP L5-10
-    Route 104 (north)       old rod    MAGIKARP L5-10
+    Route 104 (south)       old rod    MAGIKARP L5-10  <- only if unspent
+    Route 104 (north)       old rod    MAGIKARP L5-10  <- only if unspent
     Route 105               old rod    MAGIKARP L5-10, TENTACOOL L5-10
                             items      IRON
                             hidden     HEART_SCALE, BIG_PEARL
@@ -227,7 +238,7 @@ SEGMENT 12        >>> DYNAMO BADGE <<<
 ##############################################################################
 
   AVAILABLE FROM HERE
-    Granite Cave            rock_smash GEODUDE L10-15, NOSEPASS L10-20
+    Granite Cave            rock_smash GEODUDE L10-15, NOSEPASS L10-20  <- only if unspent
     Mauville Gym            gift       TM_SHOCK_WAVE
     ** CAPABILITY **        ROCK_SMASH HM_ROCK_SMASH at Mauville City (held earlier; needs badge 3)
 
@@ -308,9 +319,9 @@ SEGMENT 15        >>> HEAT BADGE <<<
 ##############################################################################
 
   AVAILABLE FROM HERE
-    Route 111 (desert)      old rod    MAGIKARP L5-10, GOLDEEN L5-10
-                            grass      SANDSHREW L20-20, TRAPINCH L20-20, BALTOY L19-19, CACNEA L20-20
-                            rock_smash GEODUDE L10-15
+    Route 111 (desert)      old rod    MAGIKARP L5-10, GOLDEEN L5-10  <- only if unspent
+                            grass      SANDSHREW L20-20, TRAPINCH L20-20, BALTOY L19-19, CACNEA L20-20  <- only if unspent
+                            rock_smash GEODUDE L10-15  <- only if unspent
                             items      TM_SANDSTORM, STARDUST, HP_UP, ELIXIR
                             hidden     STARDUST, PROTEIN, RARE_CANDY
                             gift       RAZZ_BERRY
@@ -330,28 +341,28 @@ SEGMENT 16        >>> BALANCE BADGE <<<
 ##############################################################################
 
   AVAILABLE FROM HERE
-    Route 103               surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-    Route 102               surf       MARILL L20-30, GOLDEEN L20-30
-    Petalburg City          surf       MARILL L20-30
-    Route 104 (south)       surf       WINGULL L10-30, PELIPPER L25-30
-    Route 104 (north)       surf       WINGULL L10-30, PELIPPER L25-30
-    Route 105               surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-    Route 106               surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-    Dewford Town            surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-    Route 107               surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-    Route 108               surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-    Route 109               surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-    Slateport City          surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-    Route 110               surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-    Route 117               surf       MARILL L20-30, GOLDEEN L20-30
-    Route 111 (south)       surf       MARILL L20-30, GOLDEEN L20-30
-    Route 114               surf       MARILL L20-30, GOLDEEN L20-30
-    Meteor Falls            surf       ZUBAT L5-35, SOLROCK L25-35
-                            surf       GOLBAT L30-35, SOLROCK L25-35
-                            surf       GOLBAT L30-35, SOLROCK L25-35
-                            surf       GOLBAT L30-35, SOLROCK L25-35
-    Route 115               surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-    Route 111 (desert)      surf       MARILL L20-30, GOLDEEN L20-30
+    Route 103               surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30  <- only if unspent
+    Route 102               surf       MARILL L20-30, GOLDEEN L20-30  <- only if unspent
+    Petalburg City          surf       MARILL L20-30  <- only if unspent
+    Route 104 (south)       surf       WINGULL L10-30, PELIPPER L25-30  <- only if unspent
+    Route 104 (north)       surf       WINGULL L10-30, PELIPPER L25-30  <- only if unspent
+    Route 105               surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30  <- only if unspent
+    Route 106               surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30  <- only if unspent
+    Dewford Town            surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30  <- only if unspent
+    Route 107               surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30  <- only if unspent
+    Route 108               surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30  <- only if unspent
+    Route 109               surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30  <- only if unspent
+    Slateport City          surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30  <- only if unspent
+    Route 110               surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30  <- only if unspent
+    Route 117               surf       MARILL L20-30, GOLDEEN L20-30  <- only if unspent
+    Route 111 (south)       surf       MARILL L20-30, GOLDEEN L20-30  <- only if unspent
+    Route 114               surf       MARILL L20-30, GOLDEEN L20-30  <- only if unspent
+    Meteor Falls            surf       ZUBAT L5-35, SOLROCK L25-35  <- only if unspent
+                            surf       GOLBAT L30-35, SOLROCK L25-35  <- only if unspent
+                            surf       GOLBAT L30-35, SOLROCK L25-35  <- only if unspent
+                            surf       GOLBAT L30-35, SOLROCK L25-35  <- only if unspent
+    Route 115               surf       TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30  <- only if unspent
+    Route 111 (desert)      surf       MARILL L20-30, GOLDEEN L20-30  <- only if unspent
     Petalburg Gym           gift       ENIGMA_BERRY_E_READER, TM_FACADE
     ** CAPABILITY **        SURF       HM_SURF at Petalburg Gym
 
@@ -367,26 +378,26 @@ SEGMENT 17
 ##############################################################################
 
   AVAILABLE FROM HERE
-    Route 103               good rod   WAILMER L10-30, SHARPEDO L30-35
-    Route 102               good rod   CORPHISH L10-30
-    Petalburg City          good rod   CORPHISH L10-30
-    Route 105               good rod   WAILMER L10-30
-    Route 106               good rod   WAILMER L10-30
-    Dewford Town            good rod   WAILMER L10-30
-    Route 107               good rod   WAILMER L10-30
-    Route 108               good rod   WAILMER L10-30
-    Route 109               good rod   WAILMER L10-30
-    Slateport City          good rod   WAILMER L10-30
-    Route 110               good rod   WAILMER L10-30
-    Route 117               good rod   CORPHISH L10-30
-    Route 111 (south)       good rod   BARBOACH L10-30
-    Route 114               good rod   BARBOACH L10-30
-    Meteor Falls            good rod   BARBOACH L10-30
-                            good rod   BARBOACH L10-30, WHISCASH L30-35
-                            good rod   BARBOACH L10-30, WHISCASH L30-35
-                            good rod   BARBOACH L10-30, WHISCASH L30-35
-    Route 115               good rod   WAILMER L10-30
-    Route 111 (desert)      good rod   BARBOACH L10-30
+    Route 103               good rod   WAILMER L10-30, SHARPEDO L30-35  <- only if unspent
+    Route 102               good rod   CORPHISH L10-30  <- only if unspent
+    Petalburg City          good rod   CORPHISH L10-30  <- only if unspent
+    Route 105               good rod   WAILMER L10-30  <- only if unspent
+    Route 106               good rod   WAILMER L10-30  <- only if unspent
+    Dewford Town            good rod   WAILMER L10-30  <- only if unspent
+    Route 107               good rod   WAILMER L10-30  <- only if unspent
+    Route 108               good rod   WAILMER L10-30  <- only if unspent
+    Route 109               good rod   WAILMER L10-30  <- only if unspent
+    Slateport City          good rod   WAILMER L10-30  <- only if unspent
+    Route 110               good rod   WAILMER L10-30  <- only if unspent
+    Route 117               good rod   CORPHISH L10-30  <- only if unspent
+    Route 111 (south)       good rod   BARBOACH L10-30  <- only if unspent
+    Route 114               good rod   BARBOACH L10-30  <- only if unspent
+    Meteor Falls            good rod   BARBOACH L10-30  <- only if unspent
+                            good rod   BARBOACH L10-30, WHISCASH L30-35  <- only if unspent
+                            good rod   BARBOACH L10-30, WHISCASH L30-35  <- only if unspent
+                            good rod   BARBOACH L10-30, WHISCASH L30-35  <- only if unspent
+    Route 115               good rod   WAILMER L10-30  <- only if unspent
+    Route 111 (desert)      good rod   BARBOACH L10-30  <- only if unspent
     Route 118               old rod    MAGIKARP L5-10, TENTACOOL L5-10
                             good rod   CARVANHA L10-30, SHARPEDO L30-35
                             grass      ZIGZAGOON L24-24, ELECTRIKE L24-24, LINOONE L26-26, MANECTRIC L26-26, WINGULL L25-25, KECLEON L25-25
@@ -811,8 +822,11 @@ NOT SOLID -- needs your judgement
      which is when the route is actually crossed on the way to Route 119. Either
      works; it is an EXP-timing choice, not a correctness one.
 
-  4. ROUTE 104 AND ROUTE 111 are each one map spanning two differently-gated
-     halves. R2 gives one encounter per location, so this needs a ruling.
+  4. ROUTE 104 AND ROUTE 111 span two differently-gated halves each. Now
+     RESOLVED by keying the one-encounter rule on the MAPSEC rather than on the
+     stop: both halves of Route 104 are MAPSEC_ROUTE_104 and share a single
+     encounter, so the northern half shows as "only if unspent". Flagged only
+     because the halves still appear as separate stops for ordering.
 
   5. THE SPACE CENTER FIGHT IS A MULTI BATTLE -- Maxie and Tabitha 2-vs-2 with
      Steven as partner, the only one in the game. The harness cannot run it
