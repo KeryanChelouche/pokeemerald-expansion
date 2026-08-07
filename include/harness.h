@@ -47,6 +47,7 @@ enum HarnessCommand
     HCMD_BOX_DEPOSIT,           // party slot -> PC
     HCMD_BOX_WITHDRAW,          // PC -> party
     HCMD_DUMP_BOX,              // what is in storage
+    HCMD_DUMP_MOVES,            // the four moves a party slot knows
     HCMD_COUNT,
 };
 
@@ -298,6 +299,40 @@ struct HarnessBoxReport
 {
     u32 count;                              // how many are stored
     struct HarnessBoxView mons[HARNESS_BOX_REPORT_MAX];
+};
+
+// HCMD_EVOLVE payload.
+//
+// checkOnly reports what a Pokemon would become without changing it, so the
+// driver can ask "evolve?" before it happens. Levelling has to stop at each
+// evolution to ask: several lines learn their best moves on evolution or in the
+// levels just after, and evolving only once the cap is reached skips them.
+struct HarnessEvolveArg
+{
+    u8 slot;
+    u8 checkOnly;
+    u8 padding[2];
+};
+
+// HCMD_EVOLVE reply. Species first so a caller that only wants "what did it
+// become" can still read the first two bytes, which is what it did before
+// evolution-learned moves were reported at all.
+struct HarnessEvolveResult
+{
+    u16 species;
+    u16 padding;
+    struct HarnessLearnable learnable;
+};
+
+// HCMD_DUMP_MOVES payload in (a party slot) and out (its four move ids).
+//
+// Deliberately its own command rather than four more fields on
+// HarnessPartyView: that struct is shared with the battle decision request,
+// where its size is load-bearing, and it has been miscounted twice already.
+struct HarnessMovesReport
+{
+    u16 moves[4];
+    u8  pp[4];
 };
 
 // HCMD_TEACH_MOVE payload. `forgetSlot` is ignored unless all four move slots

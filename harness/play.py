@@ -189,18 +189,42 @@ def decode_text(raw: bytes, charmap: dict[int, str]) -> list[str]:
 
 
 def load_names(path: pathlib.Path, prefix: str) -> dict[int, str]:
-    """Parse `NAME = 123,` and bare `NAME,` enum entries out of a constants header."""
-    names, counter = {}, 0
-    pat = re.compile(rf"^\s*{prefix}([A-Z0-9_]+)\s*(?:=\s*(0x[0-9a-fA-F]+|\d+))?\s*,")
+    """id -> display name for the entries of a constants enum.
+
+    Every entry is evaluated, not just the ones carrying the prefix. Skipping the
+    others silently breaks the count: moves.h has a bare `MOVES_COUNT_GEN2,` in
+    the middle of the move enum, and ignoring it shifted every id after it by
+    one, so Fake Out came out unnamed and its neighbours were named as each
+    other.
+
+    `NAME = OTHER_NAME` is resolved against what has been seen, which is how
+    MOVE_FAKE_OUT = MOVES_COUNT_GEN2 gets its value at all.
+    """
+    values = _enum_values(path)
+    return {v: k[len(prefix):].replace("_", " ").title()
+            for k, v in values.items() if k.startswith(prefix)}
+
+
+def _enum_values(path: pathlib.Path) -> dict[str, int]:
+    """NAME -> value for a C enum, following `= <literal>` and `= <other name>`."""
+    out: dict[str, int] = {}
+    counter = 0
+    pat = re.compile(r"^\s*([A-Z_][A-Z0-9_]*)\s*(?:=\s*([A-Za-z0-9_]+))?\s*,")
     for line in path.read_text(errors="replace").splitlines():
         m = pat.match(line)
         if not m:
             continue
-        if m.group(2) is not None:
-            counter = int(m.group(2), 0)
-        names.setdefault(counter, m.group(1).replace("_", " ").title())
+        name, rhs = m.group(1), m.group(2)
+        if rhs is not None:
+            try:
+                counter = int(rhs, 0)
+            except ValueError:
+                if rhs not in out:
+                    continue          # forward reference: cannot place it, skip
+                counter = out[rhs]
+        out.setdefault(name, counter)
         counter += 1
-    return names
+    return out
 
 
 class Battler:

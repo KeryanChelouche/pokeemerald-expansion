@@ -36,7 +36,8 @@ from ledger import Ledger                              # noqa: E402
 import liveview                                        # noqa: E402
 from play import (BADGE_FLAGS, HACT_BALL, HACT_MOVE, HACT_SWITCH,  # noqa: E402
                   HTARGET_DEFAULT, ITEM_POKE_BALL, METHODS, SPEC_FMT,
-                  decode, decode_text, load_charmap, load_names, render)
+                  decode, decode_text, load_charmap, load_names, render,
+                  _enum_values)
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -48,6 +49,7 @@ HERR_NOT_ELIGIBLE = 8      # enum HarnessError in include/harness.h
 HERR_PARTY_FULL = 10
 HERR_BOX_FULL = 11
 HERR_LAST_MON = 12
+HARNESS_MAX_LEARNABLE = 24      # mirrors include/harness.h
 
 # Ball stock by badge count. Emerald gates better balls behind mart stock rather
 # than behind a flag, and shop inventories are not in the extracted data, so this
@@ -59,12 +61,11 @@ OUTCOMES = {1: "won", 2: "lost", 3: "drew", 4: "ran", 6: "it fled", 7: "caught"}
 
 # The rival's team counters yours, so the starter chosen selects which rival
 # variant the Route 103 node resolves to.
-STARTERS = {
-    "TREECKO":  ("SPECIES_TREECKO", 277, "TREECKO"),
-    "TORCHIC":  ("SPECIES_TORCHIC", 255, "TORCHIC"),
-    "MUDKIP":   ("SPECIES_MUDKIP", 258, "MUDKIP"),
-}
-STARTER_MOVES = {277: [33], 255: [33], 258: [33]}   # Tackle/Scratch stand-in
+# Ids are looked up from the header at load time, never written here. Treecko
+# was hardcoded as 277, which is Swellow -- and a parser bug in the move/species
+# tables hid it, so choosing Treecko silently produced a Swellow while the menus
+# said Treecko.
+STARTER_NAMES = ("TREECKO", "TORCHIC", "MUDKIP")
 NAME_LEN = 12         # POKEMON_NAME_LENGTH
 PLAYER_NAME_LEN = 7   # PLAYER_NAME_LENGTH
 MALE, FEMALE = 0, 1
@@ -173,16 +174,20 @@ def load_tmhm_aliases(root: pathlib.Path, items: dict[str, int]) -> None:
 
 
 def load_constants(path: pathlib.Path, prefix: str) -> dict[str, int]:
-    """NAME -> value for `#define NAME v` and `NAME = v,` enum styles."""
-    out, counter = {}, 0
+    """NAME -> value for `#define NAME v` and enum styles.
+
+    Enum entries go through the same evaluator play.py uses, which counts every
+    entry rather than only the prefixed ones -- a bare `MOVES_COUNT_GEN2,` in the
+    middle of an enum still consumes a value, and ignoring it shifts everything
+    after.
+    """
+    out = {}
     txt = path.read_text(errors="replace")
     for m in re.finditer(rf"^\s*#define\s+({prefix}[A-Z0-9_]+)\s+(\d+)", txt, re.M):
         out[m.group(1)] = int(m.group(2))
-    for m in re.finditer(rf"^\s*({prefix}[A-Z0-9_]+)\s*(?:=\s*(\d+))?\s*,", txt, re.M):
-        if m.group(2) is not None:
-            counter = int(m.group(2))
-        out.setdefault(m.group(1), counter)
-        counter += 1
+    for name, val in _enum_values(path).items():
+        if name.startswith(prefix):
+            out.setdefault(name, val)
     return out
 
 
@@ -401,36 +406,107 @@ class Runner:
         source = gym or pending[0]
         return max(m["level"] for m in self.rosters[source["trainer_resolved"]]["mons"])
 
+    def read_moves(self, sess, slot):
+        out, _ = sess.run(S.HCMD_DUMP_MOVES, struct.pack("<B3x", slot))
+        ids = struct.unpack_from("<4H", out, 0)
+        pp = struct.unpack_from("<4B", out, 8)
+        return [(m, p) for m, p in zip(ids, pp)]
+
+    def try_evolve(self, sess, slot, who):
+        """Offer an evolution if one is due. Returns True if it evolved.
+
+        Asked rather than applied: evolving changes what the Pokemon learns and
+        when, and a few lines are worth keeping (Beautifly's are learned on
+        evolution) or worth delaying.
+        """
+        try:
+            out, _ = sess.run(S.HCMD_EVOLVE, struct.pack("<BB2x", slot, 0))
+        except S.SessionError as e:
+            if f"error code {HERR_NOT_ELIGIBLE}" in str(e):
+                return False              # nothing to evolve into right now
+            raise
+        if len(out) < 2:
+            return False
+        into = struct.unpack_from("<H", out, 0)[0]
+        print(f"       {who} evolved into {self.species.get(into, f'#{into}')}!")
+
+        # Several lines get their kit on evolution rather than by level, so this
+        # is not cosmetic: without it a Dustox keeps only what it knew as a
+        # Wurmple.
+        if len(out) >= 12:
+            nl, np = struct.unpack_from("<2I", out, 4)
+            learned = [struct.unpack_from("<H", out, 12 + k * 2)[0] for k in range(nl)]
+            pending = [struct.unpack_from("<H", out, 12 + HARNESS_MAX_LEARNABLE * 2
+                                          + k * 2)[0] for k in range(np)]
+            if learned:
+                print(f"       learned on evolution: "
+                      f"{', '.join(self.moves.get(m, f'#{m}') for m in learned)}")
+            if pending:
+                self.resolve_pending(sess, slot, who, pending)
+        return True
+
+    def eligible_to_evolve(self, sess, slot):
+        """Whether an evolution is available, without performing it."""
+        try:
+            out, _ = sess.run(S.HCMD_EVOLVE, struct.pack("<BB2x", slot, 1))
+            return len(out) >= 2
+        except S.SessionError:
+            return False
+
     def level_to_cap(self, sess, nodes):
+        """Level one at a time, stopping at each evolution to ask.
+
+        Jumping straight to the cap and evolving afterwards silently loses moves:
+        Wurmple's line learns most of its kit on evolution and in the levels just
+        after it, so a Wurmple taken from 7 to 15 and only then evolved never sees
+        them. One level at a time keeps every learn-point in order.
+        """
         cap = self.level_cap(nodes)
         if cap is None:
             print("  no pending fight, so no cap to level to")
             return
-        out, _ = sess.run(S.HCMD_DUMP_STATE)
-        count = struct.unpack_from("<I", out, 0)[0]
-        print(f"\n  Level cap is {cap} (next fight's strongest)")
-        for i in range(count):
-            off = 4 + i * PARTY_VIEW
-            sp, hp, mx, lv, alive = struct.unpack_from("<3HBB", out, off)
-            nick = decode_text(out[off + NICK_OFF:off + NICK_OFF + NICK_LEN] + b"\xff",
-                               self.charmap)
-            who = (nick[0] if nick else "?")
+
+        party = self.read_party(sess)
+        print(f"\n  Level cap is {cap} (the next gym leader's ace)")
+        for i, mon in enumerate(party):
+            who, lv = mon["nick"], mon["level"]
             if lv >= cap:
                 print(f"    {who} already Lv{lv}")
                 continue
-            reply, _ = sess.run(S.HCMD_SET_LEVEL, struct.pack("<BB2x", i, cap))
-            nl, np = struct.unpack_from("<2I", reply, 0)
-            learned = [struct.unpack_from("<H", reply, 8 + k * 2)[0] for k in range(nl)]
-            pending = [struct.unpack_from("<H", reply, 8 + 2 * 24 + k * 2)[0]
-                       for k in range(np)]
+
             print(f"    {who} Lv{lv} -> Lv{cap}")
-            if learned:
-                # Already applied: the engine puts a new move in a free slot, so
-                # there is nothing to decide.
-                print(f"       learned: "
-                      f"{', '.join(self.moves.get(m, f'#{m}') for m in learned)}")
-            if pending:
-                self.resolve_pending(sess, i, who, pending)
+            while lv < cap:
+                lv += 1
+                reply, _ = sess.run(S.HCMD_SET_LEVEL, struct.pack("<BB2x", i, lv))
+                nl, np = struct.unpack_from("<2I", reply, 0)
+                learned = [struct.unpack_from("<H", reply, 8 + k * 2)[0]
+                           for k in range(nl)]
+                pending = [struct.unpack_from("<H", reply, 8 + 2 * 24 + k * 2)[0]
+                           for k in range(np)]
+                if learned:
+                    print(f"       Lv{lv}: learned "
+                          f"{', '.join(self.moves.get(m, f'#{m}') for m in learned)}")
+                if pending:
+                    self.resolve_pending(sess, i, who, pending)
+
+                # Between levels, because that is where the game would evolve and
+                # therefore where the move list changes.
+                if self.evolve_prompt(sess, i, who, lv):
+                    who = self.read_party(sess)[i]["nick"]
+
+    def evolve_prompt(self, sess, slot, who, lv):
+        """Ask, then evolve. Returns True if it evolved."""
+        if not self.eligible_to_evolve(sess, slot):
+            return False
+        if self.args.auto:
+            return self.try_evolve(sess, slot, who)
+        while True:
+            pk = input(f"       {who} can evolve at Lv{lv}. Evolve? [y/n]: "
+                       ).strip().lower()
+            if pk in ("n", "no"):
+                return False
+            if pk in ("y", "yes", ""):
+                return self.try_evolve(sess, slot, who)
 
     def read_party(self, sess):
         """Live party from the ROM, rather than what Python believes it to be."""
@@ -475,15 +551,18 @@ class Runner:
 
     def resolve_pending(self, sess, slot, who, pending):
         """A move only needs a decision when all four slots are full (§4.8)."""
-        out, _ = sess.run(S.HCMD_DUMP_STATE)
         for mv in pending:
             name = self.moves.get(mv, f"#{mv}")
             if self.args.auto:
                 print(f"       declined {name} (auto)")
                 continue
+            # The four it already knows, by name. Choosing by slot number alone
+            # is a memory test, not a decision.
+            known = self.read_moves(sess, slot)
             print(f"       {who} can learn {name}, but knows four moves already.")
-            for j in range(4):
-                print(f"         {j + 1}) forget move slot {j + 1}")
+            for j, (mid, pp) in enumerate(known):
+                print(f"         {j + 1}) forget "
+                      f"{self.moves.get(mid, f'#{mid}'):<16} (PP {pp})")
             print(f"         0) decline {name}")
             while True:
                 pk = input(f"       Choose [0-4]: ").strip()
@@ -500,7 +579,8 @@ class Runner:
         """§4.8: evolution never fires on its own, because levels are set directly."""
         for mon in self.read_party(sess):
             try:
-                out, _ = sess.run(S.HCMD_EVOLVE, struct.pack("<I", mon["slot"]))
+                out, _ = sess.run(S.HCMD_EVOLVE,
+                                  struct.pack("<BB2x", mon["slot"], 0))
             except S.SessionError as e:
                 # Only "not eligible" is expected here. Swallowing every error
                 # would hide a hang or a bad slot as a Pokemon that simply is not
@@ -956,8 +1036,19 @@ class Runner:
         self.rival = "MAY" if self.gender == MALE else "BRENDAN"
         return self.player_name, self.gender
 
+    def starter_table(self):
+        ids = load_constants(ROOT / "include/constants/species.h", "SPECIES_")
+        out = {}
+        for name in STARTER_NAMES:
+            key = f"SPECIES_{name}"
+            if key not in ids:
+                raise SystemExit(f"{key} is not in species.h")
+            out[name] = (key, ids[key], name)
+        return out
+
     def pick_starter(self):
-        keys = list(STARTERS)
+        starters = self.starter_table()
+        keys = list(starters)
         if self.args.auto:
             self.starter = "MUDKIP"
         else:
@@ -970,7 +1061,7 @@ class Runner:
                 if pk.isdigit() and 1 <= int(pk) <= len(keys):
                     self.starter = keys[int(pk) - 1]
                     break
-        _, sp_id, label = STARTERS[self.starter]
+        _, sp_id, label = starters[self.starter]
         nick = self.ask_nickname(f"{label}", label)
         self.team.append((nick, label))
         # The starter counts as owned for R4, so its whole line is a dupe.
@@ -985,7 +1076,12 @@ class Runner:
               f"starter {self.starter}, rival {self.rival}, "
               f"{len(nodes)} nodes, seed 0x{self.args.seed:08X}")
 
-        party = build_party([(0x12345678, sp_id, 5, STARTER_MOVES[sp_id])])
+        # Scratch for Torchic, Tackle for the other two -- their real level-5
+        # move. Looked up rather than hardcoded, for the same reason the species
+        # ids are.
+        first_move = [self.move_ids["MOVE_SCRATCH" if self.starter == "TORCHIC"
+                                    else "MOVE_TACKLE"]]
+        party = build_party([(0x12345678, sp_id, 5, first_move)])
         rom_sha1 = json.loads(self.args.symbols.read_text()).get("rom_sha1", "?")
 
         live_dir = None
@@ -1031,7 +1127,7 @@ class Runner:
                        rival=self.rival)
               self.restock_balls(sess)
               self.log("starter", species=self.species.get(sp_id, str(sp_id)),
-                       species_id=sp_id, level=5, moves=STARTER_MOVES[sp_id],
+                       species_id=sp_id, level=5, moves=first_move,
                        nickname=starter_nick)
               sess.run(S.HCMD_SET_NICKNAME,
                        nickname_payload(0, starter_nick, self.charmap))

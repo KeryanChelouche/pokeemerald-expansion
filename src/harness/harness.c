@@ -628,10 +628,40 @@ static void Harness_DumpBox(void)
     Harness_Ok(sizeof(out->count) + n * sizeof(out->mons[0]));
 }
 
+// Which four moves a party member knows. Needed when a level-up offers a fifth:
+// choosing what to forget by slot number alone means remembering what is in each
+// slot, which is a memory test rather than a decision.
+static void Harness_DumpMoves(void)
+{
+    const struct HarnessBoxArg *arg =
+        (const struct HarnessBoxArg *)gHarnessMailbox.payloadIn;
+    struct HarnessMovesReport *out =
+        (struct HarnessMovesReport *)gHarnessMailbox.payloadOut;
+    u32 i;
+
+    if (gHarnessMailbox.payloadInLen < sizeof(*arg))
+    {
+        Harness_Fail(HERR_BAD_PAYLOAD);
+        return;
+    }
+    if (arg->slot >= CalculatePlayerPartyCount())
+    {
+        Harness_Fail(HERR_BAD_SLOT);
+        return;
+    }
+
+    for (i = 0; i < 4; i++)
+    {
+        out->moves[i] = GetMonData(&gPlayerParty[arg->slot], MON_DATA_MOVE1 + i);
+        out->pp[i] = GetMonData(&gPlayerParty[arg->slot], MON_DATA_PP1 + i);
+    }
+    Harness_Ok(sizeof(*out));
+}
+
 static void Harness_Release(void)
 {
-    const struct HarnessSetLevelArg *arg =
-        (const struct HarnessSetLevelArg *)gHarnessMailbox.payloadIn;   // slot only
+    const struct HarnessEvolveArg *arg =
+        (const struct HarnessEvolveArg *)gHarnessMailbox.payloadIn;
 
     if (gHarnessMailbox.payloadInLen < sizeof(u32))
     {
@@ -736,8 +766,8 @@ static void Harness_TeachMove(void)
 // old species name, and register the new species in the dex.
 static void Harness_Evolve(void)
 {
-    const struct HarnessSetLevelArg *arg =
-        (const struct HarnessSetLevelArg *)gHarnessMailbox.payloadIn;   // slot only
+    const struct HarnessEvolveArg *arg =
+        (const struct HarnessEvolveArg *)gHarnessMailbox.payloadIn;
     struct Pokemon *mon;
     enum Species before, target;
     u32 zero = 0;
@@ -764,6 +794,15 @@ static void Harness_Evolve(void)
         return;
     }
 
+    // Report without applying, so the driver can ask first.
+    if (arg->checkOnly)
+    {
+        gHarnessMailbox.payloadOut[0] = target & 0xFF;
+        gHarnessMailbox.payloadOut[1] = target >> 8;
+        Harness_Ok(2);
+        return;
+    }
+
     SetMonData(mon, MON_DATA_SPECIES, &target);
     SetMonData(mon, MON_DATA_EVOLUTION_TRACKER, &zero);
     CalculateMonStats(mon);
@@ -771,9 +810,38 @@ static void Harness_Evolve(void)
     GetSetPokedexFlag(SpeciesToNationalPokedexNum(target), FLAG_SET_SEEN);
     GetSetPokedexFlag(SpeciesToNationalPokedexNum(target), FLAG_SET_CAUGHT);
 
-    gHarnessMailbox.payloadOut[0] = target & 0xFF;
-    gHarnessMailbox.payloadOut[1] = target >> 8;
-    Harness_Ok(2);
+    // Moves learned ON evolution, which are a real part of several lines --
+    // Beautifly and Dustox get their kit this way, and without this an evolved
+    // Pokemon keeps only what it knew before. Uses the engine's own evolution
+    // learnset walk rather than a second implementation of it.
+    {
+        struct HarnessEvolveResult *res =
+            (struct HarnessEvolveResult *)gHarnessMailbox.payloadOut;
+        u32 learned;
+        bool8 first = TRUE;
+
+        res->species = target;
+        res->padding = 0;
+        res->learnable.learnedCount = 0;
+        res->learnable.pendingCount = 0;
+
+        while ((learned = MonTryLearningNewMoveEvolution(mon, first)) != MOVE_NONE)
+        {
+            first = FALSE;
+            if (learned == MON_HAS_MAX_MOVES)
+            {
+                // All four slots full, so the choice belongs to the agent --
+                // exactly as it does on a level-up.
+                if (res->learnable.pendingCount < HARNESS_MAX_LEARNABLE)
+                    res->learnable.pending[res->learnable.pendingCount++] = gMoveToLearn;
+            }
+            else if (res->learnable.learnedCount < HARNESS_MAX_LEARNABLE)
+            {
+                res->learnable.learned[res->learnable.learnedCount++] = learned;
+            }
+        }
+        Harness_Ok(sizeof(*res));
+    }
 }
 
 // Reorders the party. Rejects anything that is not a permutation of the living
@@ -1047,6 +1115,9 @@ void Task_HarnessDispatch(u8 taskId)
         break;
     case HCMD_DUMP_BOX:
         Harness_DumpBox();
+        break;
+    case HCMD_DUMP_MOVES:
+        Harness_DumpMoves();
         break;
     case HCMD_ATTEMPT_CATCH:
     case HCMD_DECISION:

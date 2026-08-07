@@ -10147,7 +10147,16 @@ static void Cmd_givecaughtmon(void)
     switch (state)
     {
     case GIVECAUGHTMON_CHECK_PARTY_SIZE:
-        if (CalculatePlayerPartyCount() == PARTY_SIZE && B_CATCH_SWAP_INTO_PARTY >= GEN_7)
+        // The expansion offers "send it to the party or the box?" when the
+        // party is full. The harness must not take that offer: answering it
+        // opens the party menu, which has no input to drive it, and the battle
+        // stops there. Storage is the driver's job -- it has a box command and
+        // decides swaps between fights, where the choice is actually informed.
+        if (CalculatePlayerPartyCount() == PARTY_SIZE && B_CATCH_SWAP_INTO_PARTY >= GEN_7
+#if HARNESS_ENABLED
+            && FALSE
+#endif
+            )
         {
             PrepareStringBattle(STRINGID_SENDCAUGHTMONPARTYORBOX, gBattlerAttacker);
             gBattleCommunication[MSG_DISPLAY] = 1;
