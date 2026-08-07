@@ -11,820 +11,674 @@ This is normal playthrough order, not speedrun order: the reference
 sheet reaches Wattson, Mt. Chimney and Flannery before Brawly, which a
 badge-ordered nuzlocke cannot do.
 
-Only MANDATORY fights are listed -- the ones a run cannot avoid. Optional
-route trainers are omitted; they are free EXP but also free risk, and the
-agent chooses whether to seek them out. Full list: campaign/extracted.json.
+Structured by GATE, not by route. A fight is the only thing that gates
+progress, so everything reachable before a fight is listed under it and the
+fight closes the segment. Encounters appear as early as they are available
+and fights as late as they can be taken -- catch first, then spend the team
+on the fight that opens the next segment.
+
+Only MANDATORY fights are listed. Optional route trainers are omitted; they
+are free EXP and free risk, and seeking them out is the agent's call. The
+full list is in campaign/extracted.json.
 
 {rival} resolves to MAY or BRENDAN from the trainer's gender, {starter}
 from the starter chosen -- the same substitution the campaign table uses.
 
-------------------------------------------------------------------------------
-Littleroot Town
-  gate: (open from the start)
-  note: Starter chosen here.
-  (no trainers, encounters or items)
-
-------------------------------------------------------------------------------
-Route 101
-  gate: (open from the start)
-  encounters (ROUTE101):
-    grass       WURMPLE L2-2, POOCHYENA L2-2, ZIGZAGOON L2-2
-
-------------------------------------------------------------------------------
-Oldale Town
-  gate: (open from the start)
-  (no trainers, encounters or items)
-
-------------------------------------------------------------------------------
-Route 103
-  gate: (open from the start)
-  note: Rival 1.
-  FIGHT  TRAINER_{rival}_ROUTE_103_{starter}
-  encounters (ROUTE103):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
-    grass       POOCHYENA L2-2, WINGULL L2-2, ZIGZAGOON L3-3
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE103):
-    ball       GUARD_SPEC, PP_UP
-
-------------------------------------------------------------------------------
-Route 102
-  gate: rival_route_103
-  FIGHT  TRAINER_CALVIN_1
-  encounters (ROUTE102):
-    fishing     MAGIKARP L5-10, GOLDEEN L5-10, CORPHISH L10-30
-    grass       POOCHYENA L3-3, WURMPLE L3-3, LOTAD L3-3, ZIGZAGOON L3-3, RALTS L4-4, SEEDOT L3-3
-    surf        MARILL L20-30, GOLDEEN L20-30
-  items (ROUTE102):
-    ball       POTION
-
-------------------------------------------------------------------------------
-Petalburg City
-  gate: rival_route_103
-  note: Norman refuses the gym until four badges.
-  encounters (PETALBURG_CITY):
-    fishing     MAGIKARP L5-10, GOLDEEN L5-10, CORPHISH L10-30
-    surf        MARILL L20-30
-  items (PETALBURG_CITY):
-    ball       MAX_REVIVE, ETHER
-    hidden     RARE_CANDY
-
-------------------------------------------------------------------------------
-Route 104 (south)
-  gate: rival_route_103
-  note: UNSURE: one map covers the southern and northern halves.
-  encounters (ROUTE104):
-    fishing     MAGIKARP L5-10
-    grass       POOCHYENA L4-4, WURMPLE L4-4, MARILL L5-5, TAILLOW L4-4, WINGULL L4-4
-    surf        WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE104):
-    ball       PP_UP, POKE_BALL, X_ACCURACY, POTION
-    hidden     SUPER_POTION, POKE_BALL, POTION, ANTIDOTE, HEART_SCALE
-
-------------------------------------------------------------------------------
-Petalburg Woods
-  gate: route_104_south
-  note: NOT IN THE SHEET but kept: this grunt blocks the Devon researcher scene 
-        and the path north. Confirm whether it is genuinely avoidable.
-  FIGHT  TRAINER_GRUNT_PETALBURG_WOODS
-  encounters (PETALBURG_WOODS):
-    grass       POOCHYENA L5-5, WURMPLE L5-5, SHROOMISH L5-5, SILCOON L5-5, CASCOON L5-5, TAILLOW L5-5, SLAKOTH L5-5
-  items (PETALBURG_WOODS):
-    ball       GREAT_BALL, X_ATTACK, ETHER, PARALYZE_HEAL
-    hidden     POTION, TINY_MUSHROOM, TINY_MUSHROOM, POKE_BALL
-
-------------------------------------------------------------------------------
-Route 104 (north)
-  gate: aqua_petalburg_woods
-  encounters (ROUTE104):
-    fishing     MAGIKARP L5-10
-    grass       POOCHYENA L4-4, WURMPLE L4-4, MARILL L5-5, TAILLOW L4-4, WINGULL L4-4
-    surf        WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE104):
-    ball       PP_UP, POKE_BALL, X_ACCURACY, POTION
-    hidden     SUPER_POTION, POKE_BALL, POTION, ANTIDOTE, HEART_SCALE
-
-------------------------------------------------------------------------------
-Rustboro City
-  gate: aqua_petalburg_woods
-  items (RUSTBORO_CITY):
-    ball       X_DEFEND
-
-------------------------------------------------------------------------------
-Rustboro Gym   >>> STONE BADGE <<<
-  gate: aqua_petalburg_woods
-  note: GYM 1. The three gym trainers are unavoidable, per the sheet.
-  FIGHT  TRAINER_JOSH
-  FIGHT  TRAINER_TOMMY
-  FIGHT  TRAINER_MARC
-  FIGHT  TRAINER_ROXANNE_1
-
-------------------------------------------------------------------------------
-Route 116
-  gate: gym_roxanne
-  FIGHT  TRAINER_DEVAN
-  encounters (ROUTE116):
-    grass       POOCHYENA L6-6, WHISMUR L6-6, NINCADA L6-6, ABRA L7-7, TAILLOW L6-6, SKITTY L7-7
-  items (ROUTE116):
-    ball       ETHER, REPEL, HP_UP, X_SPECIAL, POTION
-    hidden     SUPER_POTION, BLACK_GLASSES
-
-------------------------------------------------------------------------------
-Rusturf Tunnel
-  gate: gym_roxanne
-  note: Devon Goods.
-  FIGHT  TRAINER_GRUNT_RUSTURF_TUNNEL
-  encounters (RUSTURF_TUNNEL):
-    grass       WHISMUR L6-6
-  items (RUSTURF_TUNNEL):
-    ball       POKE_BALL, MAX_ETHER
-
-------------------------------------------------------------------------------
-Rustboro City (rival 2)
-  gate: rusturf_grunt
-  note: NOT IN THE SHEET but kept -- confirm whether rival 2 is skippable.
-  FIGHT  TRAINER_{rival}_RUSTBORO_{starter}
-  items (RUSTBORO_CITY):
-    ball       X_DEFEND
-
-------------------------------------------------------------------------------
-Route 105
-  gate: gym_brawly
-  note: Needs Surf.
-  encounters (ROUTE105):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE105):
-    ball       IRON
-    hidden     HEART_SCALE, BIG_PEARL
-
-------------------------------------------------------------------------------
-Route 106
-  gate: rival_rustboro
-  note: Briney's boat.
-  encounters (ROUTE106):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE106):
-    ball       PROTEIN
-    hidden     POKE_BALL, STARDUST, HEART_SCALE
-
-------------------------------------------------------------------------------
-Granite Cave
-  gate: rival_rustboro
-  note: Deliver the letter to Steven; he gives TM47.
-  encounters (GRANITE_CAVE_1F):
-    grass       ZUBAT L7-7, MAKUHITA L8-8, ABRA L8-8, GEODUDE L7-7
-  items (GRANITE_CAVE_1F):
-    ball       ESCAPE_ROPE
-  encounters (GRANITE_CAVE_B1F):
-    grass       ZUBAT L9-9, ARON L10-10, ABRA L9-9, MAKUHITA L10-10, SABLEYE L10-10
-  items (GRANITE_CAVE_B1F):
-    ball       POKE_BALL
-  encounters (GRANITE_CAVE_B2F):
-    grass       ZUBAT L10-10, ARON L11-11, ABRA L10-10, SABLEYE L10-10
-    rock_smash  GEODUDE L10-15, NOSEPASS L10-20
-  items (GRANITE_CAVE_B2F):
-    ball       REPEL, RARE_CANDY
-    hidden     EVERSTONE, EVERSTONE
-  encounters (GRANITE_CAVE_STEVENS_ROOM):
-    grass       ZUBAT L7-7, MAKUHITA L8-8, ABRA L8-8, ARON L7-7
-
-------------------------------------------------------------------------------
-Dewford Town
-  gate: rival_rustboro
-  encounters (DEWFORD_TOWN):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-
-------------------------------------------------------------------------------
-Dewford Gym   >>> KNUCKLE BADGE <<<
-  gate: rival_rustboro
-  note: GYM 2 [REROUTED] -- the sheet fights Brawly after Flannery. Everything f
-        rom Slateport to Flannery moves behind this.
-  FIGHT  TRAINER_BRAWLY_1
-
-------------------------------------------------------------------------------
-Route 107
-  gate: gym_brawly
-  encounters (ROUTE107):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-
-------------------------------------------------------------------------------
-Route 108
-  gate: gym_brawly
-  encounters (ROUTE108):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE108):
-    ball       STAR_PIECE
-    hidden     RARE_CANDY
-
-------------------------------------------------------------------------------
-Route 109
-  gate: gym_brawly
-  encounters (ROUTE109):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE109):
-    ball       PP_UP, POTION
-    hidden     REVIVE, HEART_SCALE, GREAT_BALL, ETHER, HEART_SCALE, HEART_SCALE
-
-------------------------------------------------------------------------------
-Slateport City
-  gate: gym_brawly
-  note: [REROUTED] Reachable only by boat from Dewford.
-  FIGHT  TRAINER_GRUNT_MUSEUM_1
-  FIGHT  TRAINER_GRUNT_MUSEUM_2
-  encounters (SLATEPORT_CITY):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-
-------------------------------------------------------------------------------
-Route 110
-  gate: slateport_museum
-  note: [REROUTED] Rival 3.
-  FIGHT  TRAINER_{rival}_ROUTE_110_{starter}
-  FIGHT  TRAINER_EDWARD
-  FIGHT  TRAINER_ALYSSA
-  encounters (ROUTE110):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
-    grass       POOCHYENA L12-12, ELECTRIKE L12-12, GULPIN L12-12, MINUN L13-13, ODDISH L13-13, WINGULL L12-12, PLUSLE L12-12
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE110):
-    ball       DIRE_HIT, RARE_CANDY, ELIXIR
-    hidden     REVIVE, GREAT_BALL, POKE_BALL, FULL_HEAL
-
-------------------------------------------------------------------------------
-Mauville City
-  gate: rival_route_110
-  note: [REROUTED]
-  FIGHT  TRAINER_WALLY_MAUVILLE
-  items (MAUVILLE_CITY):
-    ball       X_SPEED
-
-------------------------------------------------------------------------------
-Mauville Gym   >>> DYNAMO BADGE <<<
-  gate: rival_route_110
-  note: GYM 3 [REROUTED].
-  FIGHT  TRAINER_BEN
-  FIGHT  TRAINER_WATTSON_1
-
-------------------------------------------------------------------------------
-Route 117
-  gate: gym_wattson
-  encounters (ROUTE117):
-    fishing     MAGIKARP L5-10, GOLDEEN L5-10, CORPHISH L10-30
-    grass       POOCHYENA L13-13, ODDISH L13-13, MARILL L13-13, ILLUMISE L13-13, VOLBEAT L13-13, SEEDOT L13-13
-    surf        MARILL L20-30, GOLDEEN L20-30
-  items (ROUTE117):
-    ball       GREAT_BALL, REVIVE
-    hidden     REPEL
-
-------------------------------------------------------------------------------
-Verdanturf Town
-  gate: gym_wattson
-  (no trainers, encounters or items)
-
-------------------------------------------------------------------------------
-Route 111 (south)
-  gate: gym_wattson
-  note: UNSURE: the desert half needs Go Goggles, obtained after Mt. Chimney.
-  encounters (ROUTE111):
-    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
-    grass       SANDSHREW L20-20, TRAPINCH L20-20, BALTOY L19-19, CACNEA L20-20
-    rock_smash  GEODUDE L10-15
-    surf        MARILL L20-30, GOLDEEN L20-30
-  items (ROUTE111):
-    ball       TM_SANDSTORM, STARDUST, HP_UP, ELIXIR
-    hidden     STARDUST, PROTEIN, RARE_CANDY
-
-------------------------------------------------------------------------------
-Route 112
-  gate: gym_wattson
-  encounters (ROUTE112):
-    grass       NUMEL L15-15, MARILL L15-15
-  items (ROUTE112):
-    ball       NUGGET
-
-------------------------------------------------------------------------------
-Fiery Path
-  gate: gym_wattson
-  encounters (FIERY_PATH):
-    grass       NUMEL L15-15, KOFFING L15-15, MACHOP L15-15, TORKOAL L15-15, SLUGMA L15-15, GRIMER L14-14
-  items (FIERY_PATH):
-    ball       TM_TOXIC, FIRE_STONE
-
-------------------------------------------------------------------------------
-Route 113
-  gate: gym_wattson
-  encounters (ROUTE113):
-    grass       SPINDA L15-15, SLUGMA L15-15, SKARMORY L16-16
-  items (ROUTE113):
-    ball       MAX_ETHER, SUPER_REPEL, HYPER_POTION
-    hidden     ETHER, TM_DOUBLE_TEAM, NUGGET
-
-------------------------------------------------------------------------------
-Fallarbor Town
-  gate: gym_wattson
-  items (FALLARBOR_TOWN):
-    hidden     NUGGET
-
-------------------------------------------------------------------------------
-Route 114
-  gate: gym_wattson
-  note: [REROUTED]
-  FIGHT  TRAINER_LUCAS_1
-  encounters (ROUTE114):
-    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
-    grass       SWABLU L16-16, LOTAD L16-16, LOMBRE L16-16, SEVIPER L17-17, NUZLEAF L15-15
-    rock_smash  GEODUDE L10-15
-    surf        MARILL L20-30, GOLDEEN L20-30
-  items (ROUTE114):
-    ball       RARE_CANDY, PROTEIN, ENERGY_POWDER
-    hidden     CARBOS, REVIVE
-
-------------------------------------------------------------------------------
-Meteor Falls
-  gate: gym_wattson
-  encounters (METEOR_FALLS_1F_1R):
-    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
-    grass       ZUBAT L16-16, SOLROCK L16-16
-    surf        ZUBAT L5-35, SOLROCK L25-35
-  items (METEOR_FALLS_1F_1R):
-    ball       TM_IRON_TAIL, MOON_STONE, FULL_HEAL, PP_UP
-  encounters (METEOR_FALLS_1F_2R):
-    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30, WHISCASH L30-35
-    grass       GOLBAT L33-33, SOLROCK L35-35
-    surf        GOLBAT L30-35, SOLROCK L25-35
-  encounters (METEOR_FALLS_B1F_1R):
-    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30, WHISCASH L30-35
-    grass       GOLBAT L33-33, SOLROCK L35-35
-    surf        GOLBAT L30-35, SOLROCK L25-35
-  encounters (METEOR_FALLS_B1F_2R):
-    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30, WHISCASH L30-35
-    grass       GOLBAT L33-33, BAGON L30-30, SOLROCK L35-35
-    surf        GOLBAT L30-35, SOLROCK L25-35
-  items (METEOR_FALLS_B1F_2R):
-    ball       TM_DRAGON_CLAW
-
-------------------------------------------------------------------------------
-Route 115
-  gate: gym_wattson
-  encounters (ROUTE115):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
-    grass       SWABLU L23-23, TAILLOW L23-23, SWELLOW L25-25, JIGGLYPUFF L24-24, WINGULL L24-24
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE115):
-    ball       SUPER_POTION, TM_FOCUS_PUNCH, IRON, GREAT_BALL, PP_UP, HEAL_POWDER
-    hidden     HEART_SCALE
-
-------------------------------------------------------------------------------
-Jagged Pass
-  gate: route_114
-  encounters (JAGGED_PASS):
-    grass       NUMEL L21-21, MACHOP L21-21, SPOINK L20-20
-  items (JAGGED_PASS):
-    ball       BURN_HEAL
-    hidden     FULL_HEAL, GREAT_BALL
-
-------------------------------------------------------------------------------
-Mt. Chimney
-  gate: jagged_pass
-  note: [REROUTED]
-  FIGHT  TRAINER_GRUNT_MT_CHIMNEY_1
-  FIGHT  TRAINER_GRUNT_MT_CHIMNEY_2
-  FIGHT  TRAINER_TABITHA_MT_CHIMNEY
-  FIGHT  TRAINER_MAXIE_MT_CHIMNEY
-
-------------------------------------------------------------------------------
-Route 111 (desert)
-  gate: mt_chimney
-  note: Go Goggles open the desert.
-  encounters (ROUTE111):
-    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
-    grass       SANDSHREW L20-20, TRAPINCH L20-20, BALTOY L19-19, CACNEA L20-20
-    rock_smash  GEODUDE L10-15
-    surf        MARILL L20-30, GOLDEEN L20-30
-  items (ROUTE111):
-    ball       TM_SANDSTORM, STARDUST, HP_UP, ELIXIR
-    hidden     STARDUST, PROTEIN, RARE_CANDY
-
-------------------------------------------------------------------------------
-Lavaridge Town
-  gate: mt_chimney
-  items (LAVARIDGE_TOWN):
-    hidden     ICE_HEAL
-
-------------------------------------------------------------------------------
-Lavaridge Gym   >>> HEAT BADGE <<<
-  gate: mt_chimney
-  note: GYM 4 [REROUTED].
-  FIGHT  TRAINER_FLANNERY_1
-  (no trainers, encounters or items)
-
-------------------------------------------------------------------------------
-Petalburg Gym   >>> BALANCE BADGE <<<
-  gate: gym_flannery
-  note: GYM 5. Opens at four badges.
-  FIGHT  TRAINER_RANDALL
-  FIGHT  TRAINER_PARKER
-  FIGHT  TRAINER_JODY
-  FIGHT  TRAINER_NORMAN_1
-
-------------------------------------------------------------------------------
-Route 118
-  gate: gym_norman
-  note: MOVED: the sheet fights these before Wattson, since Route 118 west is wa
-        lkable from Mauville. Placed here because this is when the route is actu
-        ally crossed, heading for Route 119. Move them earlier if you would rath
-        er take the EXP sooner.
-  FIGHT  TRAINER_ROSE_1
-  FIGHT  TRAINER_DEANDRE
-  encounters (ROUTE118):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, CARVANHA L10-30, SHARPEDO L30-35
-    grass       ZIGZAGOON L24-24, ELECTRIKE L24-24, LINOONE L26-26, MANECTRIC L26-26, WINGULL L25-25, KECLEON L25-25
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE118):
-    ball       HYPER_POTION
-    hidden     IRON, HEART_SCALE
-
-------------------------------------------------------------------------------
-Route 119
-  gate: gym_norman
-  note: Rival 4.
-  FIGHT  TRAINER_{rival}_ROUTE_119_{starter}
-  encounters (ROUTE119):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, CARVANHA L10-30
-    grass       ZIGZAGOON L25-25, LINOONE L25-25, ODDISH L25-25, TROPIUS L25-25, KECLEON L25-25
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE119):
-    ball       SUPER_REPEL, ZINC, ELIXIR, LEAF_STONE, RARE_CANDY, HYPER_POTION, HYPER_POTION, NUGGET, ELIXIR
-    hidden     CALCIUM, ULTRA_BALL, FULL_HEAL, MAX_ETHER
-
-------------------------------------------------------------------------------
-Weather Institute
-  gate: gym_norman
-  note: The sheet marks 1 grunt on 1F and 2 on 2F as unavoidable; the data has 2
-         and 3. Which specific grunts is not determined -- see uncertainties.
-  FIGHT  TRAINER_SHELLY_WEATHER_INSTITUTE
-
-------------------------------------------------------------------------------
-Fortree City
-  gate: weather_institute
-  (no trainers, encounters or items)
-
-------------------------------------------------------------------------------
-Fortree Gym   >>> FEATHER BADGE <<<
-  gate: weather_institute
-  note: GYM 6.
-  FIGHT  TRAINER_FLINT
-  FIGHT  TRAINER_EDWARDO
-  FIGHT  TRAINER_DARIUS
-  FIGHT  TRAINER_WINONA_1
-
-------------------------------------------------------------------------------
-Route 120
-  gate: gym_winona
-  encounters (ROUTE120):
-    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
-    grass       POOCHYENA L25-25, MIGHTYENA L25-25, ODDISH L25-25, MARILL L25-25, ABSOL L25-25, KECLEON L25-25, SEEDOT L25-25
-    surf        MARILL L20-30, GOLDEEN L20-30
-  items (ROUTE120):
-    ball       NUGGET, FULL_HEAL, NEST_BALL, HYPER_POTION, REVIVE
-    hidden     RARE_CANDY, REVIVE, RARE_CANDY, ZINC
-
-------------------------------------------------------------------------------
-Route 121
-  gate: gym_winona
-  encounters (ROUTE121):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
-    grass       POOCHYENA L26-26, SHUPPET L26-26, MIGHTYENA L26-26, ODDISH L26-26, GLOOM L28-28, WINGULL L26-26, KECLEON L25-25
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE121):
-    ball       CARBOS, REVIVE, ZINC
-    hidden     HP_UP, NUGGET, FULL_HEAL, MAX_REVIVE
-
-------------------------------------------------------------------------------
-Route 122
-  gate: gym_winona
-  encounters (ROUTE122):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-
-------------------------------------------------------------------------------
-Mt. Pyre
-  gate: gym_winona
-  FIGHT  TRAINER_GRUNT_MT_PYRE_1
-  FIGHT  TRAINER_GRUNT_MT_PYRE_2
-  FIGHT  TRAINER_GRUNT_MT_PYRE_3
-  FIGHT  TRAINER_GRUNT_MT_PYRE_4
-  encounters (MT_PYRE_1F):
-    grass       SHUPPET L27-27
-  encounters (MT_PYRE_2F):
-    grass       SHUPPET L27-27
-  items (MT_PYRE_2F):
-    ball       ULTRA_BALL
-  encounters (MT_PYRE_3F):
-    grass       SHUPPET L27-27
-  items (MT_PYRE_3F):
-    ball       SUPER_REPEL
-  encounters (MT_PYRE_4F):
-    grass       SHUPPET L27-27, DUSKULL L27-27
-  items (MT_PYRE_4F):
-    ball       SEA_INCENSE
-  encounters (MT_PYRE_5F):
-    grass       SHUPPET L27-27, DUSKULL L27-27
-  items (MT_PYRE_5F):
-    ball       LAX_INCENSE
-  encounters (MT_PYRE_6F):
-    grass       SHUPPET L27-27, DUSKULL L27-27
-  items (MT_PYRE_6F):
-    ball       TM_SHADOW_BALL
-  encounters (MT_PYRE_EXTERIOR):
-    grass       SHUPPET L27-27, VULPIX L29-29, WINGULL L27-27
-  items (MT_PYRE_EXTERIOR):
-    ball       MAX_POTION, TM_SKILL_SWAP
-    hidden     ULTRA_BALL, MAX_ETHER
-  encounters (MT_PYRE_SUMMIT):
-    grass       SHUPPET L28-28, DUSKULL L28-28, CHIMECHO L28-28
-  items (MT_PYRE_SUMMIT):
-    hidden     ZINC, RARE_CANDY
-
-------------------------------------------------------------------------------
-Magma Hideout
-  gate: mt_pyre
-  note: The sheet marks 7 grunts unavoidable across 1F-4F; the data has 16. Whic
-        h ones is not determined.
-  FIGHT  TRAINER_TABITHA_MAGMA_HIDEOUT
-  FIGHT  TRAINER_MAXIE_MAGMA_HIDEOUT
-  encounters (MAGMA_HIDEOUT_1F):
-    grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
-  items (MAGMA_HIDEOUT_1F):
-    ball       RARE_CANDY
-  encounters (MAGMA_HIDEOUT_2F_1R):
-    grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
-  encounters (MAGMA_HIDEOUT_2F_2R):
-    grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
-  items (MAGMA_HIDEOUT_2F_2R):
-    ball       MAX_ELIXIR, FULL_RESTORE
-  encounters (MAGMA_HIDEOUT_2F_3R):
-    grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
-  encounters (MAGMA_HIDEOUT_3F_1R):
-    grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
-  items (MAGMA_HIDEOUT_3F_1R):
-    ball       NUGGET
-  encounters (MAGMA_HIDEOUT_3F_2R):
-    grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
-  items (MAGMA_HIDEOUT_3F_2R):
-    ball       PP_MAX
-  encounters (MAGMA_HIDEOUT_3F_3R):
-    grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
-  items (MAGMA_HIDEOUT_3F_3R):
-    ball       ESCAPE_ROPE
-  encounters (MAGMA_HIDEOUT_4F):
-    grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
-  items (MAGMA_HIDEOUT_4F):
-    ball       MAX_REVIVE
-
-------------------------------------------------------------------------------
-Lilycove City
-  gate: magma_hideout
-  note: Rival 5.
-  FIGHT  TRAINER_{rival}_LILYCOVE_{starter}
-  encounters (LILYCOVE_CITY):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, STARYU L25-30
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (LILYCOVE_CITY):
-    ball       MAX_REPEL
-    hidden     HEART_SCALE, PP_UP, POKE_BALL
-
-------------------------------------------------------------------------------
-Aqua Hideout
-  gate: rival_lilycove
-  note: The sheet marks 4 grunts unavoidable; the data has 8.
-  FIGHT  TRAINER_MATT
-  items (AQUA_HIDEOUT_B1F):
-    ball       MAX_ELIXIR, MASTER_BALL, NUGGET
-  items (AQUA_HIDEOUT_B2F):
-    ball       NEST_BALL
-
-------------------------------------------------------------------------------
-Route 124
-  gate: aqua_hideout
-  FIGHT  TRAINER_DECLAN
-  encounters (ROUTE124):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE124):
-    ball       RED_SHARD, BLUE_SHARD, YELLOW_SHARD
-
-------------------------------------------------------------------------------
-Mossdeep City
-  gate: aqua_hideout
-  encounters (MOSSDEEP_CITY):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (MOSSDEEP_CITY):
-    ball       NET_BALL
-
-------------------------------------------------------------------------------
-Mossdeep Gym   >>> MIND BADGE <<<
-  gate: aqua_hideout
-  note: GYM 7. Tate & Liza is a DOUBLE.
-  FIGHT  TRAINER_PRESTON
-  FIGHT  TRAINER_MAURA
-  FIGHT  TRAINER_MACEY
-  FIGHT  TRAINER_SYLVIA
-  FIGHT  TRAINER_HANNAH
-  FIGHT  TRAINER_TATE_AND_LIZA_1
-
-------------------------------------------------------------------------------
-Space Center
-  gate: gym_tate_liza
-  note: MULTI battle, 2-vs-2 with Steven as partner. The harness cannot run this
-         yet. The sheet marks 5 grunts unavoidable; the data has 7.
-  FIGHT  TRAINER_MAXIE_MOSSDEEP
-  FIGHT  TRAINER_TABITHA_MOSSDEEP
-
-------------------------------------------------------------------------------
-Route 125
-  gate: gym_tate_liza
-  encounters (ROUTE125):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE125):
-    ball       BIG_PEARL
-
-------------------------------------------------------------------------------
-Route 127
-  gate: space_center
-  encounters (ROUTE127):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE127):
-    ball       ZINC, CARBOS, RARE_CANDY
-
-------------------------------------------------------------------------------
-Route 128
-  gate: space_center
-  encounters (ROUTE128):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, LUVDISC L10-30, WAILMER L10-30, CORSOLA L30-35
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE128):
-    hidden     HEART_SCALE, HEART_SCALE, HEART_SCALE
-
-------------------------------------------------------------------------------
-Seafloor Cavern
-  gate: space_center
-  FIGHT  TRAINER_SHELLY_SEAFLOOR_CAVERN
-  FIGHT  TRAINER_ARCHIE
-  encounters (SEAFLOOR_CAVERN_ENTRANCE):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
-    surf        TENTACOOL L5-35, ZUBAT L5-35, GOLBAT L30-35
-  encounters (SEAFLOOR_CAVERN_ROOM1):
-    grass       ZUBAT L30-30, GOLBAT L34-34
-  encounters (SEAFLOOR_CAVERN_ROOM2):
-    grass       ZUBAT L30-30, GOLBAT L34-34
-  encounters (SEAFLOOR_CAVERN_ROOM3):
-    grass       ZUBAT L30-30, GOLBAT L34-34
-  encounters (SEAFLOOR_CAVERN_ROOM4):
-    grass       ZUBAT L30-30, GOLBAT L34-34
-  encounters (SEAFLOOR_CAVERN_ROOM5):
-    grass       ZUBAT L30-30, GOLBAT L34-34
-  encounters (SEAFLOOR_CAVERN_ROOM6):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
-    grass       ZUBAT L30-30, GOLBAT L34-34
-    surf        TENTACOOL L5-35, ZUBAT L5-35, GOLBAT L30-35
-  encounters (SEAFLOOR_CAVERN_ROOM7):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
-    grass       ZUBAT L30-30, GOLBAT L34-34
-    surf        TENTACOOL L5-35, ZUBAT L5-35, GOLBAT L30-35
-  encounters (SEAFLOOR_CAVERN_ROOM8):
-    grass       ZUBAT L30-30, GOLBAT L34-34
-  items (SEAFLOOR_CAVERN_ROOM9):
-    ball       TM_EARTHQUAKE
-
-------------------------------------------------------------------------------
-Route 126
-  gate: space_center
-  encounters (ROUTE126):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE126):
-    ball       GREEN_SHARD
-
-------------------------------------------------------------------------------
-Sootopolis City
-  gate: seafloor_cavern
-  encounters (SOOTOPOLIS_CITY):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, GYARADOS L35-40
-    surf        MAGIKARP L5-35
-
-------------------------------------------------------------------------------
-Sootopolis Gym   >>> RAIN BADGE <<<
-  gate: sootopolis_plot
-  note: GYM 8.
-  FIGHT  TRAINER_JUAN_1
-
-------------------------------------------------------------------------------
-Route 129
-  gate: gym_juan
-  encounters (ROUTE129):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30, WAILORD L25-30
-
-------------------------------------------------------------------------------
-Route 130
-  gate: gym_juan
-  encounters (ROUTE130):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
-    grass       WYNAUT L30-30
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-
-------------------------------------------------------------------------------
-Route 131
-  gate: gym_juan
-  encounters (ROUTE131):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-
-------------------------------------------------------------------------------
-Route 132
-  gate: gym_juan
-  encounters (ROUTE132):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35, HORSEA L25-30
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE132):
-    ball       RARE_CANDY, PROTEIN
-
-------------------------------------------------------------------------------
-Route 133
-  gate: gym_juan
-  encounters (ROUTE133):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35, HORSEA L25-30
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE133):
-    ball       BIG_PEARL, STAR_PIECE, MAX_REVIVE
-
-------------------------------------------------------------------------------
-Route 134
-  gate: gym_juan
-  encounters (ROUTE134):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35, HORSEA L25-30
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE134):
-    ball       CARBOS, STAR_PIECE
-
-------------------------------------------------------------------------------
-Victory Road
-  gate: gym_juan
-  FIGHT  TRAINER_WALLY_VR_1
-  FIGHT  TRAINER_HOPE
-  FIGHT  TRAINER_SHANNON
-  FIGHT  TRAINER_JULIE
-  FIGHT  TRAINER_EDGAR
-  encounters (VICTORY_ROAD_1F):
-    grass       GOLBAT L40-40, HARIYAMA L40-40, LAIRON L40-40, LOUDRED L40-40, ZUBAT L36-36, MAKUHITA L36-36, ARON L36-36, WHISMUR L36-36
-  items (VICTORY_ROAD_1F):
-    ball       MAX_ELIXIR, PP_UP
-    hidden     ULTRA_BALL
-  encounters (VICTORY_ROAD_B1F):
-    grass       GOLBAT L40-40, HARIYAMA L40-40, LAIRON L40-40, MAWILE L38-38
-    rock_smash  GRAVELER L30-40, GEODUDE L30-40
-  items (VICTORY_ROAD_B1F):
-    ball       TM_PSYCHIC, FULL_RESTORE
-  encounters (VICTORY_ROAD_B2F):
-    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30, WHISCASH L30-35
-    grass       GOLBAT L40-40, SABLEYE L40-40, LAIRON L40-40, MAWILE L42-42
-    surf        GOLBAT L30-35
-  items (VICTORY_ROAD_B2F):
-    ball       FULL_HEAL
-    hidden     ELIXIR, MAX_REPEL
-
-------------------------------------------------------------------------------
-Pokemon League
-  gate: victory_road
-  note: No healing between rooms.
-  FIGHT  TRAINER_SIDNEY
-  FIGHT  TRAINER_PHOEBE
-  FIGHT  TRAINER_GLACIA
-  FIGHT  TRAINER_DRAKE
-  FIGHT  TRAINER_WALLACE
-
-------------------------------------------------------------------------------
-Meteor Falls (Steven)
-  gate: champion
-  note: Steven is post-Champion in Emerald and is listed in the sheet. Left out 
-        of the mandatory chain: the run ends at Wallace.
-  encounters (METEOR_FALLS_1F_2R):
-    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30, WHISCASH L30-35
-    grass       GOLBAT L33-33, SOLROCK L35-35
-    surf        GOLBAT L30-35, SOLROCK L25-35
+##############################################################################
+SEGMENT 1
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Littleroot Town       --          nothing to catch or pick up
+        note: Starter chosen here.
+    Route 101             grass       WURMPLE L2-2, POOCHYENA L2-2, ZIGZAGOON L2-2
+    Oldale Town           --          nothing to catch or pick up
+    Route 103             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+                          grass       POOCHYENA L2-2, WINGULL L2-2, ZIGZAGOON L3-3
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       GUARD_SPEC, PP_UP
+
+  GATE -- beat this to open the next segment
+    TRAINER_{rival}_ROUTE_103_{starter}
+      Rival 1.
+
+##############################################################################
+SEGMENT 2
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Route 102             fishing     MAGIKARP L5-10, GOLDEEN L5-10, CORPHISH L10-30
+                          grass       POOCHYENA L3-3, WURMPLE L3-3, LOTAD L3-3, ZIGZAGOON L3-3, RALTS L4-4, SEEDOT L3-3
+                          surf        MARILL L20-30, GOLDEEN L20-30
+                          items       POTION
+
+  GATE -- beat this to open the next segment
+    TRAINER_CALVIN_1
+
+##############################################################################
+SEGMENT 3
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Petalburg City        fishing     MAGIKARP L5-10, GOLDEEN L5-10, CORPHISH L10-30
+                          surf        MARILL L20-30
+                          items       MAX_REVIVE, ETHER
+                          hidden      RARE_CANDY
+        note: Norman refuses the gym until four badges.
+    Route 104 (south)     fishing     MAGIKARP L5-10
+                          grass       POOCHYENA L4-4, WURMPLE L4-4, MARILL L5-5, TAILLOW L4-4, WINGULL L4-4
+                          surf        WINGULL L10-30, PELIPPER L25-30
+                          items       PP_UP, POKE_BALL, X_ACCURACY, POTION
+                          hidden      SUPER_POTION, POKE_BALL, POTION, ANTIDOTE, HEART_SCALE
+        note: UNSURE: one map covers the southern and northern halves.
+    Petalburg Woods       grass       POOCHYENA L5-5, WURMPLE L5-5, SHROOMISH L5-5, SILCOON L5-5, CASCOON L5-5, TAILLOW L5-5, SLAKOTH L5-5
+                          items       GREAT_BALL, X_ATTACK, ETHER, PARALYZE_HEAL
+                          hidden      POTION, TINY_MUSHROOM, TINY_MUSHROOM, POKE_BALL
+
+  GATE -- beat this to open the next segment
+    TRAINER_GRUNT_PETALBURG_WOODS
+      NOT IN THE SHEET but kept: this grunt blocks the Devon researcher
+      scene and the path north. Confirm whether it is genuinely avoidable.
+
+##############################################################################
+SEGMENT 4        >>> STONE BADGE <<<
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Route 104 (north)     fishing     MAGIKARP L5-10
+                          grass       POOCHYENA L4-4, WURMPLE L4-4, MARILL L5-5, TAILLOW L4-4, WINGULL L4-4
+                          surf        WINGULL L10-30, PELIPPER L25-30
+                          items       PP_UP, POKE_BALL, X_ACCURACY, POTION
+                          hidden      SUPER_POTION, POKE_BALL, POTION, ANTIDOTE, HEART_SCALE
+    Rustboro City         items       X_DEFEND
+    Rustboro Gym          --          nothing to catch or pick up
+
+  GATE -- beat this to open the next segment
+    TRAINER_JOSH
+    TRAINER_TOMMY
+    TRAINER_MARC
+    TRAINER_ROXANNE_1
+      GYM 1. The three gym trainers are unavoidable, per the sheet.
+
+##############################################################################
+SEGMENT 5
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Route 116             grass       POOCHYENA L6-6, WHISMUR L6-6, NINCADA L6-6, ABRA L7-7, TAILLOW L6-6, SKITTY L7-7
+                          items       ETHER, REPEL, HP_UP, X_SPECIAL, POTION
+                          hidden      SUPER_POTION, BLACK_GLASSES
+
+  GATE -- beat this to open the next segment
+    TRAINER_DEVAN
+
+##############################################################################
+SEGMENT 6
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Rusturf Tunnel        grass       WHISMUR L6-6
+                          items       POKE_BALL, MAX_ETHER
+
+  GATE -- beat this to open the next segment
+    TRAINER_GRUNT_RUSTURF_TUNNEL
+      Devon Goods.
+
+##############################################################################
+SEGMENT 7
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Rustboro City (rival 2)items       X_DEFEND
+
+  GATE -- beat this to open the next segment
+    TRAINER_{rival}_RUSTBORO_{starter}
+      NOT IN THE SHEET but kept -- confirm whether rival 2 is skippable.
+
+##############################################################################
+SEGMENT 8        >>> KNUCKLE BADGE <<<
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Route 105             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       IRON
+                          hidden      HEART_SCALE, BIG_PEARL
+        note: Needs Surf.
+    Route 106             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       PROTEIN
+                          hidden      POKE_BALL, STARDUST, HEART_SCALE
+        note: Briney's boat.
+    Granite Cave          grass       ZUBAT L7-7, MAKUHITA L8-8, ABRA L8-8, GEODUDE L7-7
+                          items       ESCAPE_ROPE
+                          grass       ZUBAT L9-9, ARON L10-10, ABRA L9-9, MAKUHITA L10-10, SABLEYE L10-10
+                          items       POKE_BALL
+                          grass       ZUBAT L10-10, ARON L11-11, ABRA L10-10, SABLEYE L10-10
+                          rock_smash  GEODUDE L10-15, NOSEPASS L10-20
+                          items       REPEL, RARE_CANDY
+                          hidden      EVERSTONE, EVERSTONE
+                          grass       ZUBAT L7-7, MAKUHITA L8-8, ABRA L8-8, ARON L7-7
+        note: Deliver the letter to Steven; he gives TM47.
+    Dewford Town          fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+    Dewford Gym           --          nothing to catch or pick up
+
+  GATE -- beat this to open the next segment
+    TRAINER_BRAWLY_1
+      GYM 2 [REROUTED] -- the sheet fights Brawly after Flannery.
+      Everything from Slateport to Flannery moves behind this.
+
+##############################################################################
+SEGMENT 9
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Route 107             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+    Route 108             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       STAR_PIECE
+                          hidden      RARE_CANDY
+    Route 109             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       PP_UP, POTION
+                          hidden      REVIVE, HEART_SCALE, GREAT_BALL, ETHER, HEART_SCALE, HEART_SCALE
+    Slateport City        fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+
+  GATE -- beat this to open the next segment
+    TRAINER_GRUNT_MUSEUM_1
+    TRAINER_GRUNT_MUSEUM_2
+      [REROUTED] Reachable only by boat from Dewford.
+
+##############################################################################
+SEGMENT 10
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Route 110             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+                          grass       POOCHYENA L12-12, ELECTRIKE L12-12, GULPIN L12-12, MINUN L13-13, ODDISH L13-13, WINGULL L12-12, PLUSLE L12-12
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       DIRE_HIT, RARE_CANDY, ELIXIR
+                          hidden      REVIVE, GREAT_BALL, POKE_BALL, FULL_HEAL
+
+  GATE -- beat this to open the next segment
+    TRAINER_{rival}_ROUTE_110_{starter}
+    TRAINER_EDWARD
+    TRAINER_ALYSSA
+      [REROUTED] Rival 3.
+
+##############################################################################
+SEGMENT 11
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Mauville City         items       X_SPEED
+
+  GATE -- beat this to open the next segment
+    TRAINER_WALLY_MAUVILLE
+      [REROUTED]
+
+##############################################################################
+SEGMENT 12        >>> DYNAMO BADGE <<<
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Mauville Gym          --          nothing to catch or pick up
+
+  GATE -- beat this to open the next segment
+    TRAINER_BEN
+    TRAINER_WATTSON_1
+      GYM 3 [REROUTED].
+
+##############################################################################
+SEGMENT 13
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Route 117             fishing     MAGIKARP L5-10, GOLDEEN L5-10, CORPHISH L10-30
+                          grass       POOCHYENA L13-13, ODDISH L13-13, MARILL L13-13, ILLUMISE L13-13, VOLBEAT L13-13, SEEDOT L13-13
+                          surf        MARILL L20-30, GOLDEEN L20-30
+                          items       GREAT_BALL, REVIVE
+                          hidden      REPEL
+    Verdanturf Town       --          nothing to catch or pick up
+    Route 111 (south)     fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
+                          grass       SANDSHREW L20-20, TRAPINCH L20-20, BALTOY L19-19, CACNEA L20-20
+                          rock_smash  GEODUDE L10-15
+                          surf        MARILL L20-30, GOLDEEN L20-30
+                          items       TM_SANDSTORM, STARDUST, HP_UP, ELIXIR
+                          hidden      STARDUST, PROTEIN, RARE_CANDY
+        note: UNSURE: the desert half needs Go Goggles, obtained after Mt.
+              Chimney.
+    Route 112             grass       NUMEL L15-15, MARILL L15-15
+                          items       NUGGET
+    Fiery Path            grass       NUMEL L15-15, KOFFING L15-15, MACHOP L15-15, TORKOAL L15-15, SLUGMA L15-15, GRIMER L14-14
+                          items       TM_TOXIC, FIRE_STONE
+    Route 113             grass       SPINDA L15-15, SLUGMA L15-15, SKARMORY L16-16
+                          items       MAX_ETHER, SUPER_REPEL, HYPER_POTION
+                          hidden      ETHER, TM_DOUBLE_TEAM, NUGGET
+    Fallarbor Town        hidden      NUGGET
+    Route 114             fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
+                          grass       SWABLU L16-16, LOTAD L16-16, LOMBRE L16-16, SEVIPER L17-17, NUZLEAF L15-15
+                          rock_smash  GEODUDE L10-15
+                          surf        MARILL L20-30, GOLDEEN L20-30
+                          items       RARE_CANDY, PROTEIN, ENERGY_POWDER
+                          hidden      CARBOS, REVIVE
+
+  GATE -- beat this to open the next segment
+    TRAINER_LUCAS_1
+      [REROUTED]
+
+##############################################################################
+SEGMENT 14
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Meteor Falls          fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
+                          grass       ZUBAT L16-16, SOLROCK L16-16
+                          surf        ZUBAT L5-35, SOLROCK L25-35
+                          items       TM_IRON_TAIL, MOON_STONE, FULL_HEAL, PP_UP
+                          fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30, WHISCASH L30-35
+                          grass       GOLBAT L33-33, SOLROCK L35-35
+                          surf        GOLBAT L30-35, SOLROCK L25-35
+                          fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30, WHISCASH L30-35
+                          grass       GOLBAT L33-33, SOLROCK L35-35
+                          surf        GOLBAT L30-35, SOLROCK L25-35
+                          fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30, WHISCASH L30-35
+                          grass       GOLBAT L33-33, BAGON L30-30, SOLROCK L35-35
+                          surf        GOLBAT L30-35, SOLROCK L25-35
+                          items       TM_DRAGON_CLAW
+    Route 115             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+                          grass       SWABLU L23-23, TAILLOW L23-23, SWELLOW L25-25, JIGGLYPUFF L24-24, WINGULL L24-24
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       SUPER_POTION, TM_FOCUS_PUNCH, IRON, GREAT_BALL, PP_UP, HEAL_POWDER
+                          hidden      HEART_SCALE
+    Jagged Pass           grass       NUMEL L21-21, MACHOP L21-21, SPOINK L20-20
+                          items       BURN_HEAL
+                          hidden      FULL_HEAL, GREAT_BALL
+    Mt. Chimney           --          nothing to catch or pick up
+
+  GATE -- beat this to open the next segment
+    TRAINER_GRUNT_MT_CHIMNEY_1
+    TRAINER_GRUNT_MT_CHIMNEY_2
+    TRAINER_TABITHA_MT_CHIMNEY
+    TRAINER_MAXIE_MT_CHIMNEY
+      [REROUTED]
+
+##############################################################################
+SEGMENT 15        >>> HEAT BADGE <<<
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Route 111 (desert)    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
+                          grass       SANDSHREW L20-20, TRAPINCH L20-20, BALTOY L19-19, CACNEA L20-20
+                          rock_smash  GEODUDE L10-15
+                          surf        MARILL L20-30, GOLDEEN L20-30
+                          items       TM_SANDSTORM, STARDUST, HP_UP, ELIXIR
+                          hidden      STARDUST, PROTEIN, RARE_CANDY
+        note: Go Goggles open the desert.
+    Lavaridge Town        hidden      ICE_HEAL
+    Lavaridge Gym         --          nothing to catch or pick up
+
+  GATE -- beat this to open the next segment
+    TRAINER_FLANNERY_1
+      GYM 4 [REROUTED].
+
+##############################################################################
+SEGMENT 16        >>> BALANCE BADGE <<<
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Petalburg Gym         --          nothing to catch or pick up
+
+  GATE -- beat this to open the next segment
+    TRAINER_RANDALL
+    TRAINER_PARKER
+    TRAINER_JODY
+    TRAINER_NORMAN_1
+      GYM 5. Opens at four badges.
+
+##############################################################################
+SEGMENT 17
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Route 118             fishing     MAGIKARP L5-10, TENTACOOL L5-10, CARVANHA L10-30, SHARPEDO L30-35
+                          grass       ZIGZAGOON L24-24, ELECTRIKE L24-24, LINOONE L26-26, MANECTRIC L26-26, WINGULL L25-25, KECLEON L25-25
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       HYPER_POTION
+                          hidden      IRON, HEART_SCALE
+
+  GATE -- beat this to open the next segment
+    TRAINER_ROSE_1
+    TRAINER_DEANDRE
+      MOVED: the sheet fights these before Wattson, since Route 118 west
+      is walkable from Mauville. Placed here because this is when the
+      route is actually crossed, heading for Route 119. Move them earlier
+      if you would rather take the EXP sooner.
+
+##############################################################################
+SEGMENT 18
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Route 119             fishing     MAGIKARP L5-10, TENTACOOL L5-10, CARVANHA L10-30
+                          grass       ZIGZAGOON L25-25, LINOONE L25-25, ODDISH L25-25, TROPIUS L25-25, KECLEON L25-25
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       SUPER_REPEL, ZINC, ELIXIR, LEAF_STONE, RARE_CANDY, HYPER_POTION, HYPER_POTION, NUGGET, ELIXIR
+                          hidden      CALCIUM, ULTRA_BALL, FULL_HEAL, MAX_ETHER
+
+  GATE -- beat this to open the next segment
+    TRAINER_{rival}_ROUTE_119_{starter}
+      Rival 4.
+
+##############################################################################
+SEGMENT 19
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Weather Institute     --          nothing to catch or pick up
+
+  GATE -- beat this to open the next segment
+    TRAINER_GRUNT_WEATHER_INST_4
+    TRAINER_GRUNT_WEATHER_INST_2
+    TRAINER_GRUNT_WEATHER_INST_5
+    TRAINER_SHELLY_WEATHER_INSTITUTE
+      Grunts identified by matching the sheet's teams against the ROM
+      parties.
+
+##############################################################################
+SEGMENT 20        >>> FEATHER BADGE <<<
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Fortree City          --          nothing to catch or pick up
+    Fortree Gym           --          nothing to catch or pick up
+
+  GATE -- beat this to open the next segment
+    TRAINER_FLINT
+    TRAINER_EDWARDO
+    TRAINER_DARIUS
+    TRAINER_WINONA_1
+      GYM 6.
+
+##############################################################################
+SEGMENT 21
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Route 120             fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
+                          grass       POOCHYENA L25-25, MIGHTYENA L25-25, ODDISH L25-25, MARILL L25-25, ABSOL L25-25, KECLEON L25-25, SEEDOT L25-25
+                          surf        MARILL L20-30, GOLDEEN L20-30
+                          items       NUGGET, FULL_HEAL, NEST_BALL, HYPER_POTION, REVIVE
+                          hidden      RARE_CANDY, REVIVE, RARE_CANDY, ZINC
+    Route 121             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+                          grass       POOCHYENA L26-26, SHUPPET L26-26, MIGHTYENA L26-26, ODDISH L26-26, GLOOM L28-28, WINGULL L26-26, KECLEON L25-25
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       CARBOS, REVIVE, ZINC
+                          hidden      HP_UP, NUGGET, FULL_HEAL, MAX_REVIVE
+    Route 122             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+    Mt. Pyre              grass       SHUPPET L27-27
+                          grass       SHUPPET L27-27
+                          items       ULTRA_BALL
+                          grass       SHUPPET L27-27
+                          items       SUPER_REPEL
+                          grass       SHUPPET L27-27, DUSKULL L27-27
+                          items       SEA_INCENSE
+                          grass       SHUPPET L27-27, DUSKULL L27-27
+                          items       LAX_INCENSE
+                          grass       SHUPPET L27-27, DUSKULL L27-27
+                          items       TM_SHADOW_BALL
+                          grass       SHUPPET L27-27, VULPIX L29-29, WINGULL L27-27
+                          items       MAX_POTION, TM_SKILL_SWAP
+                          hidden      ULTRA_BALL, MAX_ETHER
+                          grass       SHUPPET L28-28, DUSKULL L28-28, CHIMECHO L28-28
+                          hidden      ZINC, RARE_CANDY
+
+  GATE -- beat this to open the next segment
+    TRAINER_GRUNT_MT_PYRE_2
+    TRAINER_GRUNT_MT_PYRE_1
+    TRAINER_GRUNT_MT_PYRE_3
+    TRAINER_GRUNT_MT_PYRE_4
+      All four matched exactly by team.
+
+##############################################################################
+SEGMENT 22
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Magma Hideout         grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
+                          items       RARE_CANDY
+                          grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
+                          grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
+                          items       MAX_ELIXIR, FULL_RESTORE
+                          grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
+                          grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
+                          items       NUGGET
+                          grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
+                          items       PP_MAX
+                          grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
+                          items       ESCAPE_ROPE
+                          grass       GEODUDE L27-27, TORKOAL L28-28, GRAVELER L30-30
+                          items       MAX_REVIVE
+
+  GATE -- beat this to open the next segment
+    TRAINER_GRUNT_MAGMA_HIDEOUT_2
+    TRAINER_GRUNT_MAGMA_HIDEOUT_3
+    TRAINER_GRUNT_MAGMA_HIDEOUT_9
+    TRAINER_GRUNT_MAGMA_HIDEOUT_16
+    TRAINER_GRUNT_MAGMA_HIDEOUT_11
+    TRAINER_GRUNT_MAGMA_HIDEOUT_12
+    TRAINER_GRUNT_MAGMA_HIDEOUT_13
+    TRAINER_TABITHA_MAGMA_HIDEOUT
+    TRAINER_MAXIE_MAGMA_HIDEOUT
+      7 of 16 grunts, identified by team and floor. The 2F one is either
+      _3 or _15 -- identical teams on the same floor, so the sheet cannot
+      separate them; they are the same fight either way.
+
+##############################################################################
+SEGMENT 23
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Lilycove City         fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, STARYU L25-30
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       MAX_REPEL
+                          hidden      HEART_SCALE, PP_UP, POKE_BALL
+
+  GATE -- beat this to open the next segment
+    TRAINER_{rival}_LILYCOVE_{starter}
+      Rival 5.
+
+##############################################################################
+SEGMENT 24
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Aqua Hideout          items       MAX_ELIXIR, MASTER_BALL, NUGGET
+                          items       NEST_BALL
+
+  GATE -- beat this to open the next segment
+    TRAINER_GRUNT_AQUA_HIDEOUT_2
+    TRAINER_GRUNT_AQUA_HIDEOUT_7
+    TRAINER_GRUNT_AQUA_HIDEOUT_6
+    TRAINER_GRUNT_AQUA_HIDEOUT_4
+    TRAINER_MATT
+      4 of 8 grunts. The second B2F one is _4 or _8 -- identical teams,
+      same floor, same fight either way.
+
+##############################################################################
+SEGMENT 25
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Route 124             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       RED_SHARD, BLUE_SHARD, YELLOW_SHARD
+
+  GATE -- beat this to open the next segment
+    TRAINER_DECLAN
+
+##############################################################################
+SEGMENT 26        >>> MIND BADGE <<<
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Mossdeep City         fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       NET_BALL
+    Mossdeep Gym          --          nothing to catch or pick up
+
+  GATE -- beat this to open the next segment
+    TRAINER_PRESTON
+    TRAINER_MAURA
+    TRAINER_MACEY
+    TRAINER_SYLVIA
+    TRAINER_HANNAH
+    TRAINER_TATE_AND_LIZA_1
+      GYM 7. Tate & Liza is a DOUBLE.
+
+##############################################################################
+SEGMENT 27
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Space Center          --          nothing to catch or pick up
+
+  GATE -- beat this to open the next segment
+    TRAINER_GRUNT_SPACE_CENTER_4
+    TRAINER_GRUNT_SPACE_CENTER_2
+    TRAINER_GRUNT_SPACE_CENTER_5
+    TRAINER_GRUNT_SPACE_CENTER_6
+    TRAINER_GRUNT_SPACE_CENTER_7
+    TRAINER_MAXIE_MOSSDEEP
+    TRAINER_TABITHA_MOSSDEEP
+      5 of 7 grunts, all matched exactly. Maxie and Tabitha are a MULTI
+      battle, 2-vs-2 with Steven as partner -- the harness cannot run this
+      yet.
+
+##############################################################################
+SEGMENT 28
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Route 125             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       BIG_PEARL
+    Route 127             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       ZINC, CARBOS, RARE_CANDY
+    Route 128             fishing     MAGIKARP L5-10, TENTACOOL L5-10, LUVDISC L10-30, WAILMER L10-30, CORSOLA L30-35
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          hidden      HEART_SCALE, HEART_SCALE, HEART_SCALE
+    Seafloor Cavern       fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+                          surf        TENTACOOL L5-35, ZUBAT L5-35, GOLBAT L30-35
+                          grass       ZUBAT L30-30, GOLBAT L34-34
+                          grass       ZUBAT L30-30, GOLBAT L34-34
+                          grass       ZUBAT L30-30, GOLBAT L34-34
+                          grass       ZUBAT L30-30, GOLBAT L34-34
+                          grass       ZUBAT L30-30, GOLBAT L34-34
+                          fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+                          grass       ZUBAT L30-30, GOLBAT L34-34
+                          surf        TENTACOOL L5-35, ZUBAT L5-35, GOLBAT L30-35
+                          fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
+                          grass       ZUBAT L30-30, GOLBAT L34-34
+                          surf        TENTACOOL L5-35, ZUBAT L5-35, GOLBAT L30-35
+                          grass       ZUBAT L30-30, GOLBAT L34-34
+                          items       TM_EARTHQUAKE
+
+  GATE -- beat this to open the next segment
+    TRAINER_SHELLY_SEAFLOOR_CAVERN
+    TRAINER_ARCHIE
+
+##############################################################################
+SEGMENT 29        >>> RAIN BADGE <<<
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Route 126             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       GREEN_SHARD
+    Sootopolis City       fishing     MAGIKARP L5-10, TENTACOOL L5-10, GYARADOS L35-40
+                          surf        MAGIKARP L5-35
+    Sootopolis Gym        --          nothing to catch or pick up
+
+  GATE -- beat this to open the next segment
+    TRAINER_JUAN_1
+      GYM 8.
+
+##############################################################################
+SEGMENT 30
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Route 129             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30, WAILORD L25-30
+    Route 130             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+                          grass       WYNAUT L30-30
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+    Route 131             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+    Route 132             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35, HORSEA L25-30
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       RARE_CANDY, PROTEIN
+    Route 133             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35, HORSEA L25-30
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       BIG_PEARL, STAR_PIECE, MAX_REVIVE
+    Route 134             fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35, HORSEA L25-30
+                          surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+                          items       CARBOS, STAR_PIECE
+    Victory Road          grass       GOLBAT L40-40, HARIYAMA L40-40, LAIRON L40-40, LOUDRED L40-40, ZUBAT L36-36, MAKUHITA L36-36, ARON L36-36, WHISMUR L36-36
+                          items       MAX_ELIXIR, PP_UP
+                          hidden      ULTRA_BALL
+                          grass       GOLBAT L40-40, HARIYAMA L40-40, LAIRON L40-40, MAWILE L38-38
+                          rock_smash  GRAVELER L30-40, GEODUDE L30-40
+                          items       TM_PSYCHIC, FULL_RESTORE
+                          fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30, WHISCASH L30-35
+                          grass       GOLBAT L40-40, SABLEYE L40-40, LAIRON L40-40, MAWILE L42-42
+                          surf        GOLBAT L30-35
+                          items       FULL_HEAL
+                          hidden      ELIXIR, MAX_REPEL
+
+  GATE -- beat this to open the next segment
+    TRAINER_WALLY_VR_1
+    TRAINER_HOPE
+    TRAINER_SHANNON
+    TRAINER_JULIE
+    TRAINER_EDGAR
+
+##############################################################################
+SEGMENT 31
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Pokemon League        --          nothing to catch or pick up
+
+  GATE -- beat this to open the next segment
+    TRAINER_SIDNEY
+    TRAINER_PHOEBE
+    TRAINER_GLACIA
+    TRAINER_DRAKE
+    TRAINER_WALLACE
+      No healing between rooms.
+
+##############################################################################
+SEGMENT 32
+##############################################################################
+
+  AVAILABLE IN THIS SEGMENT
+    Meteor Falls (Steven) fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30, WHISCASH L30-35
+                          grass       GOLBAT L33-33, SOLROCK L35-35
+                          surf        GOLBAT L30-35, SOLROCK L25-35
+        note: Steven is post-Champion in Emerald and is listed in the sheet.
+              Left out of the mandatory chain: the run ends at Wallace.
+
+  GATE -- beat this to open the next segment
 
 ==============================================================================
-TOTALS: 74 stops, 67 mandatory fights, 208 items
+TOTALS: 32 segments, 86 mandatory fights, 208 items
 ==============================================================================
 
 

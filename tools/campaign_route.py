@@ -20,6 +20,7 @@ it skips back and forth; a nuzlocke has to take the gyms in badge order.
 
 import json
 import pathlib
+import textwrap
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -129,9 +130,9 @@ ORDER = [
      ["TRAINER_{rival}_ROUTE_119_{starter}"], "Rival 4."),
     ("Weather Institute", ["ROUTE119_WEATHER_INSTITUTE_1F",
                            "ROUTE119_WEATHER_INSTITUTE_2F"], "gym_norman", None,
-     ["TRAINER_SHELLY_WEATHER_INSTITUTE"],
-     "The sheet marks 1 grunt on 1F and 2 on 2F as unavoidable; the data has 2 "
-     "and 3. Which specific grunts is not determined -- see uncertainties."),
+     ["TRAINER_GRUNT_WEATHER_INST_4", "TRAINER_GRUNT_WEATHER_INST_2",
+      "TRAINER_GRUNT_WEATHER_INST_5", "TRAINER_SHELLY_WEATHER_INSTITUTE"],
+     "Grunts identified by matching the sheet's teams against the ROM parties."),
     ("Fortree City", ["FORTREE_CITY"], "weather_institute", None, [], ""),
     ("Fortree Gym", ["FORTREE_CITY_GYM"], "weather_institute", "FEATHER",
      ["TRAINER_FLINT", "TRAINER_EDWARDO", "TRAINER_DARIUS", "TRAINER_WINONA_1"],
@@ -142,21 +143,31 @@ ORDER = [
     ("Mt. Pyre", ["MT_PYRE_1F", "MT_PYRE_2F", "MT_PYRE_3F", "MT_PYRE_4F",
                   "MT_PYRE_5F", "MT_PYRE_6F", "MT_PYRE_EXTERIOR",
                   "MT_PYRE_SUMMIT"], "gym_winona", None,
-     ["TRAINER_GRUNT_MT_PYRE_1", "TRAINER_GRUNT_MT_PYRE_2",
-      "TRAINER_GRUNT_MT_PYRE_3", "TRAINER_GRUNT_MT_PYRE_4"], ""),
+     ["TRAINER_GRUNT_MT_PYRE_2", "TRAINER_GRUNT_MT_PYRE_1",
+      "TRAINER_GRUNT_MT_PYRE_3", "TRAINER_GRUNT_MT_PYRE_4"],
+     "All four matched exactly by team."),
     ("Magma Hideout", ["MAGMA_HIDEOUT_1F", "MAGMA_HIDEOUT_2F_1R",
                        "MAGMA_HIDEOUT_2F_2R", "MAGMA_HIDEOUT_2F_3R",
                        "MAGMA_HIDEOUT_3F_1R", "MAGMA_HIDEOUT_3F_2R",
                        "MAGMA_HIDEOUT_3F_3R", "MAGMA_HIDEOUT_4F"],
      "mt_pyre", None,
-     ["TRAINER_TABITHA_MAGMA_HIDEOUT", "TRAINER_MAXIE_MAGMA_HIDEOUT"],
-     "The sheet marks 7 grunts unavoidable across 1F-4F; the data has 16. Which "
-     "ones is not determined."),
+     ["TRAINER_GRUNT_MAGMA_HIDEOUT_2", "TRAINER_GRUNT_MAGMA_HIDEOUT_3",
+      "TRAINER_GRUNT_MAGMA_HIDEOUT_9", "TRAINER_GRUNT_MAGMA_HIDEOUT_16",
+      "TRAINER_GRUNT_MAGMA_HIDEOUT_11", "TRAINER_GRUNT_MAGMA_HIDEOUT_12",
+      "TRAINER_GRUNT_MAGMA_HIDEOUT_13",
+      "TRAINER_TABITHA_MAGMA_HIDEOUT", "TRAINER_MAXIE_MAGMA_HIDEOUT"],
+     "7 of 16 grunts, identified by team and floor. The 2F one is either "
+     "_3 or _15 -- identical teams on the same floor, so the sheet cannot "
+     "separate them; they are the same fight either way."),
     ("Lilycove City", ["LILYCOVE_CITY"], "magma_hideout", None,
      ["TRAINER_{rival}_LILYCOVE_{starter}"], "Rival 5."),
     ("Aqua Hideout", ["AQUA_HIDEOUT_1F", "AQUA_HIDEOUT_B1F", "AQUA_HIDEOUT_B2F"],
-     "rival_lilycove", None, ["TRAINER_MATT"],
-     "The sheet marks 4 grunts unavoidable; the data has 8."),
+     "rival_lilycove", None,
+     ["TRAINER_GRUNT_AQUA_HIDEOUT_2", "TRAINER_GRUNT_AQUA_HIDEOUT_7",
+      "TRAINER_GRUNT_AQUA_HIDEOUT_6", "TRAINER_GRUNT_AQUA_HIDEOUT_4",
+      "TRAINER_MATT"],
+     "4 of 8 grunts. The second B2F one is _4 or _8 -- identical teams, same "
+     "floor, same fight either way."),
     ("Route 124", ["ROUTE124"], "aqua_hideout", None, ["TRAINER_DECLAN"], ""),
     ("Mossdeep City", ["MOSSDEEP_CITY"], "aqua_hideout", None, [], ""),
     ("Mossdeep Gym", ["MOSSDEEP_CITY_GYM"], "aqua_hideout", "MIND",
@@ -164,9 +175,12 @@ ORDER = [
       "TRAINER_HANNAH", "TRAINER_TATE_AND_LIZA_1"], "GYM 7. Tate & Liza is a DOUBLE."),
     ("Space Center", ["MOSSDEEP_CITY_SPACE_CENTER_1F",
                       "MOSSDEEP_CITY_SPACE_CENTER_2F"], "gym_tate_liza", None,
-     ["TRAINER_MAXIE_MOSSDEEP", "TRAINER_TABITHA_MOSSDEEP"],
-     "MULTI battle, 2-vs-2 with Steven as partner. The harness cannot run this "
-     "yet. The sheet marks 5 grunts unavoidable; the data has 7."),
+     ["TRAINER_GRUNT_SPACE_CENTER_4", "TRAINER_GRUNT_SPACE_CENTER_2",
+      "TRAINER_GRUNT_SPACE_CENTER_5", "TRAINER_GRUNT_SPACE_CENTER_6",
+      "TRAINER_GRUNT_SPACE_CENTER_7",
+      "TRAINER_MAXIE_MOSSDEEP", "TRAINER_TABITHA_MOSSDEEP"],
+     "5 of 7 grunts, all matched exactly. Maxie and Tabitha are a MULTI battle, "
+     "2-vs-2 with Steven as partner -- the harness cannot run this yet."),
     ("Route 125", ["ROUTE125"], "gym_tate_liza", None, [], ""),
     ("Route 127", ["ROUTE127"], "space_center", None, [], ""),
     ("Route 128", ["ROUTE128"], "space_center", None, [], ""),
@@ -322,9 +336,14 @@ def main() -> int:
     w("This is normal playthrough order, not speedrun order: the reference\n")
     w("sheet reaches Wattson, Mt. Chimney and Flannery before Brawly, which a\n")
     w("badge-ordered nuzlocke cannot do.\n\n")
-    w("Only MANDATORY fights are listed -- the ones a run cannot avoid. Optional\n")
-    w("route trainers are omitted; they are free EXP but also free risk, and the\n")
-    w("agent chooses whether to seek them out. Full list: campaign/extracted.json.\n\n")
+    w("Structured by GATE, not by route. A fight is the only thing that gates\n")
+    w("progress, so everything reachable before a fight is listed under it and the\n")
+    w("fight closes the segment. Encounters appear as early as they are available\n")
+    w("and fights as late as they can be taken -- catch first, then spend the team\n")
+    w("on the fight that opens the next segment.\n\n")
+    w("Only MANDATORY fights are listed. Optional route trainers are omitted; they\n")
+    w("are free EXP and free risk, and seeking them out is the agent's call. The\n")
+    w("full list is in campaign/extracted.json.\n\n")
     w("{rival} resolves to MAY or BRENDAN from the trainer's gender, {starter}\n")
     w("from the starter chosen -- the same substitution the campaign table uses.\n\n")
 
@@ -338,59 +357,82 @@ def main() -> int:
             if concrete not in all_ids:
                 unresolved.append((label, tid, concrete))
 
-    seen_trainers: set[str] = set()
-    n_stops = n_tr = n_items = 0
+    # Segments, not routes. A fight is the only thing that gates progress, so
+    # the file is organised around them: everything reachable before a gate is
+    # listed under that gate, and the gate closes it.
+    #
+    # Encounters appear as early as they become available and fights as late as
+    # they can be taken, which is how a run is actually played -- catch first,
+    # then spend the team on the fight that opens the next segment.
+    n_seg = n_tr = n_items = 0
+    pending: list = []
+
+    def flush(gate_fights, badge, gate_note):
+        nonlocal n_seg, n_tr, n_items
+        n_seg += 1
+        w("#" * 78 + "\n")
+        head = f"SEGMENT {n_seg}"
+        if badge:
+            head += f"        >>> {badge} BADGE <<<"
+        w(head + "\n")
+        w("#" * 78 + "\n\n")
+
+        if pending:
+            w("  AVAILABLE IN THIS SEGMENT\n")
+            for label, maps, note in pending:
+                shown = False
+                for mp in maps:
+                    rec = data.get(mp)
+                    if rec is None:
+                        continue
+                    if rec["encounters"]:
+                        for field, mons in rec["encounters"].items():
+                            names = ", ".join(
+                                f"{m['species'].replace('SPECIES_', '')} "
+                                f"L{m['min']}-{m['max']}" for m in mons)
+                            w(f"    {label if not shown else '':<22}"
+                              f"{METHOD_LABEL.get(field, field):<11} {names}\n")
+                            shown = True
+                    balls, hidden = rec["items"]["ball"], rec["items"]["hidden"]
+                    n_items += len(balls) + len(hidden)
+                    if balls:
+                        w(f"    {label if not shown else '':<22}"
+                          f"{'items':<11} " + ", ".join(
+                              i.replace("ITEM_", "") for i in balls) + "\n")
+                        shown = True
+                    if hidden:
+                        w(f"    {label if not shown else '':<22}"
+                          f"{'hidden':<11} " + ", ".join(
+                              i.replace("ITEM_", "") for i in hidden) + "\n")
+                        shown = True
+                if not shown:
+                    w(f"    {label:<22}{'--':<11} nothing to catch or pick up\n")
+                if note:
+                    for i, line in enumerate(textwrap.wrap(note, 62)):
+                        w(f"        {'note: ' if i == 0 else '      '}{line}\n")
+            w("\n")
+        else:
+            w("  AVAILABLE IN THIS SEGMENT\n    (nothing new)\n\n")
+
+        w("  GATE -- beat this to open the next segment\n")
+        for tid in gate_fights:
+            n_tr += 1
+            w(f"    {tid}\n")
+        if gate_note:
+            for line in textwrap.wrap(gate_note, 68):
+                w(f"      {line}\n")
+        w("\n")
+        pending.clear()
 
     for label, maps, gate, badge, mand, note in ORDER:
-        n_stops += 1
-        w("-" * 78 + "\n")
-        head = label
-        if badge:
-            head += f"   >>> {badge} BADGE <<<"
-        w(head + "\n")
-        w(f"  gate: {gate or '(open from the start)'}\n")
-        if note:
-            for i in range(0, len(note), 72):
-                w(f"  note: {note[i:i + 72]}\n" if i == 0 else f"        {note[i:i + 72]}\n")
-
-        for tid in mand:
-            n_tr += 1
-            w(f"  FIGHT  {tid}\n")
-
-        for mp in maps:
-            rec = data.get(mp)
-            if rec is None:
-                # Distinguish a wrong name from a genuinely empty map: towns
-                # have no wild table, no item ball and no trainer, and the
-                # extractor drops them. Only the former needs fixing.
-                exists = (ROOT / "data/maps").glob("*/map.json")
-                known = mp in ALL_MAP_IDS
-                w(f"  (no trainers, encounters or items)\n" if known
-                  else f"  ! map {mp} not found -- check the name\n")
-                continue
-
-            if rec["encounters"]:
-                w(f"  encounters ({mp}):\n")
-                for field, mons in rec["encounters"].items():
-                    names = ", ".join(
-                        f"{m['species'].replace('SPECIES_', '')} "
-                        f"L{m['min']}-{m['max']}" for m in mons)
-                    w(f"    {METHOD_LABEL.get(field, field):<11} {names}\n")
-
-            balls, hidden = rec["items"]["ball"], rec["items"]["hidden"]
-            if balls or hidden:
-                n_items += len(balls) + len(hidden)
-                w(f"  items ({mp}):\n")
-                if balls:
-                    w("    ball       " + ", ".join(
-                        i.replace("ITEM_", "") for i in balls) + "\n")
-                if hidden:
-                    w("    hidden     " + ", ".join(
-                        i.replace("ITEM_", "") for i in hidden) + "\n")
-        w("\n")
+        pending.append((label, maps, note if not mand else ""))
+        if mand:
+            flush(mand, badge, note)
+    if pending:
+        flush([], None, "")
 
     w("=" * 78 + "\n")
-    w(f"TOTALS: {n_stops} stops, {n_tr} mandatory fights, {n_items} items\n")
+    w(f"TOTALS: {n_seg} segments, {n_tr} mandatory fights, {n_items} items\n")
     if unresolved:
         w("\nUNRESOLVED mandatory ids (fix before trusting this table):\n")
         for stop, tid, concrete in unresolved:
