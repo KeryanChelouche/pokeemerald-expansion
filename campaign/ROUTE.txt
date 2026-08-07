@@ -21,8 +21,7 @@ from the starter chosen -- the same substitution the campaign table uses.
 ------------------------------------------------------------------------------
 Littleroot Town
   gate: (open from the start)
-  note: Starter chosen here. The tutorial Zigzagoon battle is skipped by the har
-        ness (set_party injects the team; see spec-deltas).
+  note: Starter chosen here.
   (no trainers, encounters or items)
 
 ------------------------------------------------------------------------------
@@ -34,13 +33,12 @@ Route 101
 ------------------------------------------------------------------------------
 Oldale Town
   gate: (open from the start)
-  note: No encounters. Shop opens.
   (no trainers, encounters or items)
 
 ------------------------------------------------------------------------------
 Route 103
   gate: (open from the start)
-  note: Rival waits here. The encounter does not require beating them.
+  note: Rival 1.
   FIGHT  TRAINER_{rival}_ROUTE_103_{starter}
   encounters (ROUTE103):
     fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
@@ -52,6 +50,7 @@ Route 103
 ------------------------------------------------------------------------------
 Route 102
   gate: rival_route_103
+  FIGHT  TRAINER_CALVIN_1
   encounters (ROUTE102):
     fishing     MAGIKARP L5-10, GOLDEEN L5-10, CORPHISH L10-30
     grass       POOCHYENA L3-3, WURMPLE L3-3, LOTAD L3-3, ZIGZAGOON L3-3, RALTS L4-4, SEEDOT L3-3
@@ -62,8 +61,7 @@ Route 102
 ------------------------------------------------------------------------------
 Petalburg City
   gate: rival_route_103
-  note: Norman refuses the gym until four badges (Emerald). Wally tutorial is a 
-        scripted catch, not a battle.
+  note: Norman refuses the gym until four badges.
   encounters (PETALBURG_CITY):
     fishing     MAGIKARP L5-10, GOLDEEN L5-10, CORPHISH L10-30
     surf        MARILL L20-30
@@ -74,9 +72,7 @@ Petalburg City
 ------------------------------------------------------------------------------
 Route 104 (south)
   gate: rival_route_103
-  note: UNSURE: Route 104 is one map for north and south halves. The southern ha
-        lf is reachable before Petalburg Woods, the northern half after. Split b
-        y hand if the encounter should differ.
+  note: UNSURE: one map covers the southern and northern halves.
   encounters (ROUTE104):
     fishing     MAGIKARP L5-10
     grass       POOCHYENA L4-4, WURMPLE L4-4, MARILL L5-5, TAILLOW L4-4, WINGULL L4-4
@@ -87,14 +83,26 @@ Route 104 (south)
 
 ------------------------------------------------------------------------------
 Petalburg Woods
-  gate: route_104_reached
-  note: Aqua Grunt here is mandatory (plot: Devon researcher).
+  gate: route_104_south
+  note: NOT IN THE SHEET but kept: this grunt blocks the Devon researcher scene 
+        and the path north. Confirm whether it is genuinely avoidable.
   FIGHT  TRAINER_GRUNT_PETALBURG_WOODS
   encounters (PETALBURG_WOODS):
     grass       POOCHYENA L5-5, WURMPLE L5-5, SHROOMISH L5-5, SILCOON L5-5, CASCOON L5-5, TAILLOW L5-5, SLAKOTH L5-5
   items (PETALBURG_WOODS):
     ball       GREAT_BALL, X_ATTACK, ETHER, PARALYZE_HEAL
     hidden     POTION, TINY_MUSHROOM, TINY_MUSHROOM, POKE_BALL
+
+------------------------------------------------------------------------------
+Route 104 (north)
+  gate: aqua_petalburg_woods
+  encounters (ROUTE104):
+    fishing     MAGIKARP L5-10
+    grass       POOCHYENA L4-4, WURMPLE L4-4, MARILL L5-5, TAILLOW L4-4, WINGULL L4-4
+    surf        WINGULL L10-30, PELIPPER L25-30
+  items (ROUTE104):
+    ball       PP_UP, POKE_BALL, X_ACCURACY, POTION
+    hidden     SUPER_POTION, POKE_BALL, POTION, ANTIDOTE, HEART_SCALE
 
 ------------------------------------------------------------------------------
 Rustboro City
@@ -105,12 +113,16 @@ Rustboro City
 ------------------------------------------------------------------------------
 Rustboro Gym   >>> STONE BADGE <<<
   gate: aqua_petalburg_woods
-  note: GYM 1 -- Roxanne. Gives TM39 Rock Tomb.
+  note: GYM 1. The three gym trainers are unavoidable, per the sheet.
+  FIGHT  TRAINER_JOSH
+  FIGHT  TRAINER_TOMMY
+  FIGHT  TRAINER_MARC
   FIGHT  TRAINER_ROXANNE_1
 
 ------------------------------------------------------------------------------
 Route 116
   gate: gym_roxanne
+  FIGHT  TRAINER_DEVAN
   encounters (ROUTE116):
     grass       POOCHYENA L6-6, WHISMUR L6-6, NINCADA L6-6, ABRA L7-7, TAILLOW L6-6, SKITTY L7-7
   items (ROUTE116):
@@ -120,7 +132,7 @@ Route 116
 ------------------------------------------------------------------------------
 Rusturf Tunnel
   gate: gym_roxanne
-  note: Aqua Grunt with the stolen Devon Goods -- mandatory plot fight.
+  note: Devon Goods.
   FIGHT  TRAINER_GRUNT_RUSTURF_TUNNEL
   encounters (RUSTURF_TUNNEL):
     grass       WHISMUR L6-6
@@ -130,8 +142,7 @@ Rusturf Tunnel
 ------------------------------------------------------------------------------
 Rustboro City (rival 2)
   gate: rusturf_grunt
-  note: UNSURE: the second rival fight triggers outside Rustboro after returning
-         the Devon Goods. Listed as its own stop because it gates the boat.
+  note: NOT IN THE SHEET but kept -- confirm whether rival 2 is skippable.
   FIGHT  TRAINER_{rival}_RUSTBORO_{starter}
   items (RUSTBORO_CITY):
     ball       X_DEFEND
@@ -139,7 +150,7 @@ Rustboro City (rival 2)
 ------------------------------------------------------------------------------
 Route 105
   gate: gym_brawly
-  note: Requires Surf -- listed here only for completeness; reachable later.
+  note: Needs Surf.
   encounters (ROUTE105):
     fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
     surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
@@ -150,7 +161,7 @@ Route 105
 ------------------------------------------------------------------------------
 Route 106
   gate: rival_rustboro
-  note: Reached by Mr Briney's boat.
+  note: Briney's boat.
   encounters (ROUTE106):
     fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
     surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
@@ -161,7 +172,7 @@ Route 106
 ------------------------------------------------------------------------------
 Granite Cave
   gate: rival_rustboro
-  note: Steven gives TM47 Steel Wing. B1F/B2F need Flash for full access.
+  note: Deliver the letter to Steven; he gives TM47.
   encounters (GRANITE_CAVE_1F):
     grass       ZUBAT L7-7, MAKUHITA L8-8, ABRA L8-8, GEODUDE L7-7
   items (GRANITE_CAVE_1F):
@@ -189,13 +200,13 @@ Dewford Town
 ------------------------------------------------------------------------------
 Dewford Gym   >>> KNUCKLE BADGE <<<
   gate: rival_rustboro
-  note: GYM 2 -- Brawly. Gives TM08 Bulk Up.
+  note: GYM 2 [REROUTED] -- the sheet fights Brawly after Flannery. Everything f
+        rom Slateport to Flannery moves behind this.
   FIGHT  TRAINER_BRAWLY_1
 
 ------------------------------------------------------------------------------
 Route 107
   gate: gym_brawly
-  note: Water route; Surf/boat.
   encounters (ROUTE107):
     fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
     surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
@@ -211,25 +222,6 @@ Route 108
     hidden     RARE_CANDY
 
 ------------------------------------------------------------------------------
-Abandoned Ship
-  gate: gym_brawly
-  note: Optional. Needs Surf and Dive for the full interior.
-  items (ABANDONED_SHIP_ROOMS_1F):
-    ball       HARBOR_MAIL
-  encounters (ABANDONED_SHIP_ROOMS_B1F):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, TENTACRUEL L30-35
-    surf        TENTACOOL L5-35, TENTACRUEL L30-35
-  items (ABANDONED_SHIP_ROOMS_B1F):
-    ball       ESCAPE_ROPE
-  items (ABANDONED_SHIP_ROOMS2_B1F):
-    ball       DIVE_BALL
-  items (ABANDONED_SHIP_ROOM_B1F):
-    ball       TM_ICE_BEAM
-  items (ABANDONED_SHIP_ROOMS2_1F):
-    ball       REVIVE
-  (no trainers, encounters or items)
-
-------------------------------------------------------------------------------
 Route 109
   gate: gym_brawly
   encounters (ROUTE109):
@@ -242,7 +234,7 @@ Route 109
 ------------------------------------------------------------------------------
 Slateport City
   gate: gym_brawly
-  note: Museum Aqua Grunts are mandatory plot fights.
+  note: [REROUTED] Reachable only by boat from Dewford.
   FIGHT  TRAINER_GRUNT_MUSEUM_1
   FIGHT  TRAINER_GRUNT_MUSEUM_2
   encounters (SLATEPORT_CITY):
@@ -252,8 +244,10 @@ Slateport City
 ------------------------------------------------------------------------------
 Route 110
   gate: slateport_museum
-  note: Rival 3 fights here. Trick House sits on this route.
+  note: [REROUTED] Rival 3.
   FIGHT  TRAINER_{rival}_ROUTE_110_{starter}
+  FIGHT  TRAINER_EDWARD
+  FIGHT  TRAINER_ALYSSA
   encounters (ROUTE110):
     fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
     grass       POOCHYENA L12-12, ELECTRIKE L12-12, GULPIN L12-12, MINUN L13-13, ODDISH L13-13, WINGULL L12-12, PLUSLE L12-12
@@ -265,7 +259,7 @@ Route 110
 ------------------------------------------------------------------------------
 Mauville City
   gate: rival_route_110
-  note: Wally battles here (PKMN Trainer Wally).
+  note: [REROUTED]
   FIGHT  TRAINER_WALLY_MAUVILLE
   items (MAUVILLE_CITY):
     ball       X_SPEED
@@ -273,13 +267,13 @@ Mauville City
 ------------------------------------------------------------------------------
 Mauville Gym   >>> DYNAMO BADGE <<<
   gate: rival_route_110
-  note: GYM 3 -- Wattson. Gives TM34 Shock Wave.
+  note: GYM 3 [REROUTED].
+  FIGHT  TRAINER_BEN
   FIGHT  TRAINER_WATTSON_1
 
 ------------------------------------------------------------------------------
 Route 117
   gate: gym_wattson
-  note: Day care route.
   encounters (ROUTE117):
     fishing     MAGIKARP L5-10, GOLDEEN L5-10, CORPHISH L10-30
     grass       POOCHYENA L13-13, ODDISH L13-13, MARILL L13-13, ILLUMISE L13-13, VOLBEAT L13-13, SEEDOT L13-13
@@ -291,15 +285,12 @@ Route 117
 ------------------------------------------------------------------------------
 Verdanturf Town
   gate: gym_wattson
-  note: No encounters.
   (no trainers, encounters or items)
 
 ------------------------------------------------------------------------------
 Route 111 (south)
   gate: gym_wattson
-  note: UNSURE: Route 111 spans south desert and north. The desert needs Go Gogg
-        les (obtained after Mt. Chimney), so its encounters unlock later than th
-        e southern trainers.
+  note: UNSURE: the desert half needs Go Goggles, obtained after Mt. Chimney.
   encounters (ROUTE111):
     fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
     grass       SANDSHREW L20-20, TRAPINCH L20-20, BALTOY L19-19, CACNEA L20-20
@@ -320,7 +311,6 @@ Route 112
 ------------------------------------------------------------------------------
 Fiery Path
   gate: gym_wattson
-  note: Full access needs Strength; encounters reachable on first pass.
   encounters (FIERY_PATH):
     grass       NUMEL L15-15, KOFFING L15-15, MACHOP L15-15, TORKOAL L15-15, SLUGMA L15-15, GRIMER L14-14
   items (FIERY_PATH):
@@ -338,13 +328,14 @@ Route 113
 ------------------------------------------------------------------------------
 Fallarbor Town
   gate: gym_wattson
-  note: No encounters.
   items (FALLARBOR_TOWN):
     hidden     NUGGET
 
 ------------------------------------------------------------------------------
 Route 114
   gate: gym_wattson
+  note: [REROUTED]
+  FIGHT  TRAINER_LUCAS_1
   encounters (ROUTE114):
     fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
     grass       SWABLU L16-16, LOTAD L16-16, LOMBRE L16-16, SEVIPER L17-17, NUZLEAF L15-15
@@ -357,7 +348,6 @@ Route 114
 ------------------------------------------------------------------------------
 Meteor Falls
   gate: gym_wattson
-  note: Deeper rooms need Surf and Waterfall.
   encounters (METEOR_FALLS_1F_1R):
     fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
     grass       ZUBAT L16-16, SOLROCK L16-16
@@ -392,8 +382,7 @@ Route 115
 
 ------------------------------------------------------------------------------
 Jagged Pass
-  gate: meteor_falls_magma
-  note: UNSURE: reached from Route 112 via the Cable Car area.
+  gate: route_114
   encounters (JAGGED_PASS):
     grass       NUMEL L21-21, MACHOP L21-21, SPOINK L20-20
   items (JAGGED_PASS):
@@ -403,7 +392,7 @@ Jagged Pass
 ------------------------------------------------------------------------------
 Mt. Chimney
   gate: jagged_pass
-  note: Magma Admin Tabitha then Magma Leader Maxie -- mandatory plot fights.
+  note: [REROUTED]
   FIGHT  TRAINER_GRUNT_MT_CHIMNEY_1
   FIGHT  TRAINER_GRUNT_MT_CHIMNEY_2
   FIGHT  TRAINER_TABITHA_MT_CHIMNEY
@@ -412,7 +401,7 @@ Mt. Chimney
 ------------------------------------------------------------------------------
 Route 111 (desert)
   gate: mt_chimney
-  note: Go Goggles obtained after Mt. Chimney open the desert.
+  note: Go Goggles open the desert.
   encounters (ROUTE111):
     fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30
     grass       SANDSHREW L20-20, TRAPINCH L20-20, BALTOY L19-19, CACNEA L20-20
@@ -431,20 +420,28 @@ Lavaridge Town
 ------------------------------------------------------------------------------
 Lavaridge Gym   >>> HEAT BADGE <<<
   gate: mt_chimney
-  note: GYM 4 -- Flannery. Gives TM50 Overheat.
+  note: GYM 4 [REROUTED].
   FIGHT  TRAINER_FLANNERY_1
   (no trainers, encounters or items)
 
 ------------------------------------------------------------------------------
 Petalburg Gym   >>> BALANCE BADGE <<<
   gate: gym_flannery
-  note: GYM 5 -- Norman. Opens only at four badges. Gives TM42 Facade.
+  note: GYM 5. Opens at four badges.
+  FIGHT  TRAINER_RANDALL
+  FIGHT  TRAINER_PARKER
+  FIGHT  TRAINER_JODY
   FIGHT  TRAINER_NORMAN_1
 
 ------------------------------------------------------------------------------
 Route 118
   gate: gym_norman
-  note: Needs Surf to cross fully.
+  note: MOVED: the sheet fights these before Wattson, since Route 118 west is wa
+        lkable from Mauville. Placed here because this is when the route is actu
+        ally crossed, heading for Route 119. Move them earlier if you would rath
+        er take the EXP sooner.
+  FIGHT  TRAINER_ROSE_1
+  FIGHT  TRAINER_DEANDRE
   encounters (ROUTE118):
     fishing     MAGIKARP L5-10, TENTACOOL L5-10, CARVANHA L10-30, SHARPEDO L30-35
     grass       ZIGZAGOON L24-24, ELECTRIKE L24-24, LINOONE L26-26, MANECTRIC L26-26, WINGULL L25-25, KECLEON L25-25
@@ -456,7 +453,7 @@ Route 118
 ------------------------------------------------------------------------------
 Route 119
   gate: gym_norman
-  note: Weather Institute (Aqua) and rival 4 are here.
+  note: Rival 4.
   FIGHT  TRAINER_{rival}_ROUTE_119_{starter}
   encounters (ROUTE119):
     fishing     MAGIKARP L5-10, TENTACOOL L5-10, CARVANHA L10-30
@@ -469,7 +466,8 @@ Route 119
 ------------------------------------------------------------------------------
 Weather Institute
   gate: gym_norman
-  note: Aqua Admin Shelly -- mandatory. Gives Castform.
+  note: The sheet marks 1 grunt on 1F and 2 on 2F as unavoidable; the data has 2
+         and 3. Which specific grunts is not determined -- see uncertainties.
   FIGHT  TRAINER_SHELLY_WEATHER_INSTITUTE
 
 ------------------------------------------------------------------------------
@@ -480,7 +478,10 @@ Fortree City
 ------------------------------------------------------------------------------
 Fortree Gym   >>> FEATHER BADGE <<<
   gate: weather_institute
-  note: GYM 6 -- Winona. Gives TM40 Aerial Ace.
+  note: GYM 6.
+  FIGHT  TRAINER_FLINT
+  FIGHT  TRAINER_EDWARDO
+  FIGHT  TRAINER_DARIUS
   FIGHT  TRAINER_WINONA_1
 
 ------------------------------------------------------------------------------
@@ -506,34 +507,19 @@ Route 121
     hidden     HP_UP, NUGGET, FULL_HEAL, MAX_REVIVE
 
 ------------------------------------------------------------------------------
-Safari Zone
+Route 122
   gate: gym_winona
-  note: UNSURE: Safari Zone catching bypasses normal battle mechanics entirely. 
-        Probably needs its own rule or exclusion -- flagged, not decided.
-  encounters (SAFARI_ZONE_SOUTH):
-    grass       ODDISH L25-25, GIRAFARIG L25-25, NATU L25-25, DODUO L25-25, GLOOM L25-25, WOBBUFFET L27-27, PIKACHU L25-25
-  encounters (SAFARI_ZONE_NORTH):
-    grass       PHANPY L27-27, ODDISH L27-27, NATU L27-27, GLOOM L29-29, XATU L29-29, HERACROSS L27-27
-    rock_smash  GEODUDE L10-15
-  items (SAFARI_ZONE_NORTH):
-    ball       CALCIUM
-  encounters (SAFARI_ZONE_SOUTHEAST):
-    fishing     MAGIKARP L25-30, GOLDEEN L25-30, REMORAID L30-35, OCTILLERY L35-40
-    grass       SUNKERN L33-33, MAREEP L34-34, AIPOM L34-34, SPINARAK L33-33, HOOTHOOT L35-35, SNUBBULL L34-34, STANTLER L36-36, GLIGAR L37-37
-    surf        WOOPER L25-30, MARILL L25-30, QUAGSIRE L35-40
-  items (SAFARI_ZONE_SOUTHEAST):
-    ball       BIG_PEARL
-    hidden     PP_UP, FULL_RESTORE
-  encounters (SAFARI_ZONE_NORTHEAST):
-    grass       AIPOM L33-33, TEDDIURSA L34-34, SUNKERN L34-34, LEDYBA L33-33, HOOTHOOT L35-35, PINECO L34-34, HOUNDOUR L36-36, MILTANK L37-37
-    rock_smash  SHUCKLE L25-30
-  items (SAFARI_ZONE_NORTHEAST):
-    ball       NUGGET
-    hidden     RARE_CANDY, ZINC
+  encounters (ROUTE122):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
 
 ------------------------------------------------------------------------------
 Mt. Pyre
   gate: gym_winona
+  FIGHT  TRAINER_GRUNT_MT_PYRE_1
+  FIGHT  TRAINER_GRUNT_MT_PYRE_2
+  FIGHT  TRAINER_GRUNT_MT_PYRE_3
+  FIGHT  TRAINER_GRUNT_MT_PYRE_4
   encounters (MT_PYRE_1F):
     grass       SHUPPET L27-27
   encounters (MT_PYRE_2F):
@@ -567,39 +553,10 @@ Mt. Pyre
     hidden     ZINC, RARE_CANDY
 
 ------------------------------------------------------------------------------
-Route 122
-  gate: gym_winona
-  encounters (ROUTE122):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-
-------------------------------------------------------------------------------
-Route 123
-  gate: gym_winona
-  encounters (ROUTE123):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30
-    grass       POOCHYENA L26-26, SHUPPET L26-26, MIGHTYENA L26-26, ODDISH L26-26, GLOOM L28-28, WINGULL L26-26, KECLEON L25-25
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (ROUTE123):
-    ball       CALCIUM, ULTRA_BALL, ELIXIR, PP_UP, REVIVAL_HERB
-    hidden     SUPER_REPEL, REVIVE, HYPER_POTION, PP_UP, RARE_CANDY
-
-------------------------------------------------------------------------------
-Lilycove City
-  gate: mt_pyre
-  note: Rival 5 fights here.
-  FIGHT  TRAINER_{rival}_LILYCOVE_{starter}
-  encounters (LILYCOVE_CITY):
-    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, STARYU L25-30
-    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
-  items (LILYCOVE_CITY):
-    ball       MAX_REPEL
-    hidden     HEART_SCALE, PP_UP, POKE_BALL
-
-------------------------------------------------------------------------------
 Magma Hideout
-  gate: rival_lilycove
-  note: Emerald: Magma Hideout is on Jagged Pass. Maxie fight is mandatory.
+  gate: mt_pyre
+  note: The sheet marks 7 grunts unavoidable across 1F-4F; the data has 16. Whic
+        h ones is not determined.
   FIGHT  TRAINER_TABITHA_MAGMA_HIDEOUT
   FIGHT  TRAINER_MAXIE_MAGMA_HIDEOUT
   encounters (MAGMA_HIDEOUT_1F):
@@ -632,9 +589,21 @@ Magma Hideout
     ball       MAX_REVIVE
 
 ------------------------------------------------------------------------------
-Aqua Hideout
+Lilycove City
   gate: magma_hideout
-  note: Aqua Admin Matt -- mandatory.
+  note: Rival 5.
+  FIGHT  TRAINER_{rival}_LILYCOVE_{starter}
+  encounters (LILYCOVE_CITY):
+    fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, STARYU L25-30
+    surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
+  items (LILYCOVE_CITY):
+    ball       MAX_REPEL
+    hidden     HEART_SCALE, PP_UP, POKE_BALL
+
+------------------------------------------------------------------------------
+Aqua Hideout
+  gate: rival_lilycove
+  note: The sheet marks 4 grunts unavoidable; the data has 8.
   FIGHT  TRAINER_MATT
   items (AQUA_HIDEOUT_B1F):
     ball       MAX_ELIXIR, MASTER_BALL, NUGGET
@@ -644,7 +613,7 @@ Aqua Hideout
 ------------------------------------------------------------------------------
 Route 124
   gate: aqua_hideout
-  note: Surf.
+  FIGHT  TRAINER_DECLAN
   encounters (ROUTE124):
     fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
     surf        TENTACOOL L5-35, WINGULL L10-30, PELIPPER L25-30
@@ -663,13 +632,19 @@ Mossdeep City
 ------------------------------------------------------------------------------
 Mossdeep Gym   >>> MIND BADGE <<<
   gate: aqua_hideout
-  note: GYM 7 -- Tate & Liza. DOUBLE battle. Gives TM04 Calm Mind.
+  note: GYM 7. Tate & Liza is a DOUBLE.
+  FIGHT  TRAINER_PRESTON
+  FIGHT  TRAINER_MAURA
+  FIGHT  TRAINER_MACEY
+  FIGHT  TRAINER_SYLVIA
+  FIGHT  TRAINER_HANNAH
   FIGHT  TRAINER_TATE_AND_LIZA_1
 
 ------------------------------------------------------------------------------
 Space Center
   gate: gym_tate_liza
-  note: Magma Admin Tabitha and Maxie -- mandatory.
+  note: MULTI battle, 2-vs-2 with Steven as partner. The harness cannot run this
+         yet. The sheet marks 5 grunts unavoidable; the data has 7.
   FIGHT  TRAINER_MAXIE_MOSSDEEP
   FIGHT  TRAINER_TABITHA_MOSSDEEP
 
@@ -703,7 +678,6 @@ Route 128
 ------------------------------------------------------------------------------
 Seafloor Cavern
   gate: space_center
-  note: Aqua Leader Archie -- mandatory.
   FIGHT  TRAINER_SHELLY_SEAFLOOR_CAVERN
   FIGHT  TRAINER_ARCHIE
   encounters (SEAFLOOR_CAVERN_ENTRANCE):
@@ -744,7 +718,6 @@ Route 126
 ------------------------------------------------------------------------------
 Sootopolis City
   gate: seafloor_cavern
-  note: Rayquaza / Kyogre-Groudon plot. No trainers until the gym opens.
   encounters (SOOTOPOLIS_CITY):
     fishing     MAGIKARP L5-10, TENTACOOL L5-10, GYARADOS L35-40
     surf        MAGIKARP L5-35
@@ -752,7 +725,7 @@ Sootopolis City
 ------------------------------------------------------------------------------
 Sootopolis Gym   >>> RAIN BADGE <<<
   gate: sootopolis_plot
-  note: GYM 8 -- Juan. Gives TM03 Water Pulse.
+  note: GYM 8.
   FIGHT  TRAINER_JUAN_1
 
 ------------------------------------------------------------------------------
@@ -765,7 +738,6 @@ Route 129
 ------------------------------------------------------------------------------
 Route 130
   gate: gym_juan
-  note: Mirage Island.
   encounters (ROUTE130):
     fishing     MAGIKARP L5-10, TENTACOOL L5-10, WAILMER L10-30, SHARPEDO L30-35
     grass       WYNAUT L30-30
@@ -808,8 +780,11 @@ Route 134
 ------------------------------------------------------------------------------
 Victory Road
   gate: gym_juan
-  note: Wally fights at the entrance.
   FIGHT  TRAINER_WALLY_VR_1
+  FIGHT  TRAINER_HOPE
+  FIGHT  TRAINER_SHANNON
+  FIGHT  TRAINER_JULIE
+  FIGHT  TRAINER_EDGAR
   encounters (VICTORY_ROAD_1F):
     grass       GOLBAT L40-40, HARIYAMA L40-40, LAIRON L40-40, LOUDRED L40-40, ZUBAT L36-36, MAKUHITA L36-36, ARON L36-36, WHISMUR L36-36
   items (VICTORY_ROAD_1F):
@@ -831,16 +806,25 @@ Victory Road
 ------------------------------------------------------------------------------
 Pokemon League
   gate: victory_road
-  note: Elite Four then Champion Wallace. No healing between -- the run ends her
-        e.
+  note: No healing between rooms.
   FIGHT  TRAINER_SIDNEY
   FIGHT  TRAINER_PHOEBE
   FIGHT  TRAINER_GLACIA
   FIGHT  TRAINER_DRAKE
   FIGHT  TRAINER_WALLACE
 
+------------------------------------------------------------------------------
+Meteor Falls (Steven)
+  gate: champion
+  note: Steven is post-Champion in Emerald and is listed in the sheet. Left out 
+        of the mandatory chain: the run ends at Wallace.
+  encounters (METEOR_FALLS_1F_2R):
+    fishing     MAGIKARP L5-10, GOLDEEN L5-10, BARBOACH L10-30, WHISCASH L30-35
+    grass       GOLBAT L33-33, SOLROCK L35-35
+    surf        GOLBAT L30-35, SOLROCK L25-35
+
 ==============================================================================
-TOTALS: 75 stops, 36 mandatory fights, 221 items
+TOTALS: 74 stops, 67 mandatory fights, 208 items
 ==============================================================================
 
 
@@ -848,84 +832,68 @@ TOTALS: 75 stops, 36 mandatory fights, 221 items
 WHAT IS SOLID, WHAT IS NOT
 ==============================================================================
 
-SOLID -- taken from the ROM's own data, not from a guide
-  * Which trainers exist on which map, and whether each fight is single or
-    double. Read from the trainerbattle commands in each map's scripts.
-  * Every wild encounter table, per map, per method, with level ranges.
-  * Every item ball and hidden item, with the exact item.
-  Spot-checked against the reference sheet: Route 102 (Calvin, Rick, Tiana,
-  Allen), Petalburg Woods (Lyle, Aqua Grunt, James) and Rustboro Gym (Josh,
-  Tommy, Marc, Roxanne) all match exactly.
+SOLID
+  * Encounters, items, and which trainers exist on which map, with single vs
+    double vs multi: all read from the decomp, not from a guide.
+  * WHICH fights are mandatory: taken from the reference sheet's mandatory-only
+    export. That corrected a real error -- gym puzzle trainers and route
+    trainers with unavoidable sight lines had been treated as optional.
+  * Every mandatory id is checked against the game data when this file is
+    generated, so a name that stops matching fails loudly.
 
-FOUND WHILE BUILDING THIS -- worth knowing
-  * THE SPACE CENTER FIGHT IS A MULTI BATTLE. Maxie and Tabitha are fought
-    2-vs-2 with Steven as your partner (multi_2_vs_2, PARTNER_STEVEN). It is
-    the only one in the game, it is mandatory, and the harness does not support
-    it -- HCMD_TRAINER_BATTLE handles single and double only. It also raises a
-    rules question: Steven's Pokemon are not yours, so what happens if one of
-    yours faints while a borrowed one is alive?
-  * A NAME-MATCHING RULE FOR "MANDATORY" WAS WRONG. Matching on substrings
-    pulled in TRAINER_MATTHEW, a Route 108 swimmer, for "MATT", and swept in
-    every avoidable hideout grunt via "GRUNT". The list is now explicit and
-    every id is checked against the game data at generation time.
-  * THE EXTRACT CONTAINS KANTO. pokeemerald-expansion ships the FireRed maps,
-    so campaign/extracted.json includes Mt. Moon, Rocket Hideout, the Sevii
-    Islands and so on. The route only walks Hoenn stops, so ROUTE.txt is clean,
-    but anything else reading extracted.json must filter them out.
+THE REROUTE
+  Brawly is gym 2 here; the sheet fights him after Flannery because it is routed
+  for a speedrun. Moving him is not a swap -- Slateport is reachable only by
+  Mr Briney's boat from Dewford, so all of these move behind Brawly with him:
 
-NOT SOLID -- written by hand, needs your judgement
-  1. THE GATES. Every "gate:" line is my reconstruction of progression from
-     playing the game, not something verified against the story flags. The
-     badge order is certainly right; which specific fight opens which route is
-     the weak part. Lines marked UNSURE are the ones I would check first.
+    Slateport museum grunts, Slateport rival, Edward, Alyssa, Wally,
+    Ben, Wattson, Lucas, the four Mt. Chimney fights, Flannery.
 
-  2. ONE MAP, TWO AREAS. Route 104 (south before the Woods, north after) and
-     Route 111 (south now, desert only once the Go Goggles exist) are each a
-     single map with a single encounter table. R2 gives one encounter per
-     location, so this needs a ruling: is Route 104 one encounter or two?
+  Marked [REROUTED] in the listing above.
 
-  3. REVISITS. Rustboro appears twice (gym, then the rival fight after the
-     Devon Goods). Same question as above -- does re-entering a location offer
-     a second encounter? I assumed no.
+  Worth knowing: the map connections alone would tell you the opposite. Route
+  116 connects to Verdanturf, and Verdanturf to Route 117 and Mauville, which
+  looks like a walking route to Wattson with no boat at all. That path runs
+  through Rusturf Tunnel, which is blocked by rubble until the story clears it.
+  Geography says the shortcut exists; the plot says it does not. Ordering cannot
+  be derived from the data for this reason.
 
-  4. WHICH GRUNTS ARE REALLY UNAVOIDABLE. Only the boss fights are listed for
-     the hideouts, Mt. Pyre and the Space Center approach. Many grunts in those
-     dungeons can be walked past, but I have not verified which, so the count
-     of mandatory fights is a lower bound.
+NOT SOLID -- needs your judgement
+  1. TWO FIGHTS ARE IN MY LIST BUT NOT IN THE SHEET: the Petalburg Woods Aqua
+     grunt, and rival 2 outside Rustboro. Both look unavoidable to me -- the
+     grunt blocks the Devon researcher scene, and the rival triggers on the way
+     out of town. Kept, and flagged. If the sheet is right they should go.
 
-  5. ITEMS ARE INCOMPLETE. Only item balls and hidden items are listed, because
-     only those are structured data. NOT included, and all significant:
-       - TMs given by gym leaders (TM39 from Roxanne, TM08 from Brawly, ...)
-       - every HM, which is what actually gates the map
-       - gift items (Wailmer Pail, Devon Goods, Go Goggles, bicycle, Castform)
-       - anything bought in a shop
-     These come from dialogue scripts. Extractable with more work, but I did
-     not want to guess at them.
+  2. WHICH GRUNTS. The sheet gives counts, not identities: 1 grunt on Weather
+     Institute 1F (data has 2), 2 on 2F (data has 3), 7 across the Magma
+     Hideout (data has 16), 4 in the Aqua Hideout (data has 8), 5 at the Space
+     Center (data has 7). Only the named bosses are listed above. Resolving
+     these needs someone to check which grunts actually block a corridor.
 
-  6. CAPABILITY UNLOCKS ARE NOT MAPPED. The route says "needs Surf" in places
-     but nothing records WHERE Surf is obtained. Since §7.2 filters draws by
-     capability, this matters more than the item list does. My recollection,
-     to be checked: Cut (Rustboro cutter's house), Flash (Granite Cave man),
-     Rock Smash (Mauville), Strength (Rusturf Tunnel), Surf (Wally's father,
-     Petalburg, after Norman), Fly (Route 119 after the Weather Institute),
-     Dive (Mossdeep after badge 7), Waterfall (Sootopolis).
+  3. ROUTE 118 PLACEMENT. The sheet fights Rose and Deandre before Wattson,
+     since Route 118 west is walkable from Mauville. I placed them after Norman,
+     which is when the route is actually crossed on the way to Route 119. Either
+     works; it is an EXP-timing choice, not a correctness one.
 
-  7. SAFARI ZONE. Catching there bypasses normal battle mechanics completely --
-     no damage, no status, Safari Balls only. It needs either its own rule or
-     an exclusion. Flagged, not decided.
+  4. ROUTE 104 AND ROUTE 111 are each one map spanning two differently-gated
+     halves. R2 gives one encounter per location, so this needs a ruling.
 
-  8. STATIC AND SPECIAL ENCOUNTERS are absent, because they are not in the wild
-     tables: the legendaries, Kecleon, Sudowoodo, Voltorb, the roaming Latias
-     or Latios, Mirage Island, Marine/Terra Cave. Each needs a decision about
-     whether it counts as the location's encounter.
+  5. THE SPACE CENTER FIGHT IS A MULTI BATTLE -- Maxie and Tabitha 2-vs-2 with
+     Steven as partner, the only one in the game. The harness cannot run it
+     (single and double only), and R1 has to say what happens when one of
+     Steven's Pokemon faints, since they are not the player's.
 
-  9. TRICK HOUSE has eight puzzles that open progressively across the game. The
-     trainers are listed but the unlock order is not modelled.
+  6. ITEMS COVER ONLY BALLS AND HIDDEN ITEMS. Every HM, every gym TM and every
+     gift item comes from dialogue scripts and is missing.
 
- 10. THE ELITE FOUR is one continuous run with no healing between rooms. The
-     table lists the five rooms as one stop but does not encode that rule.
+  7. CAPABILITY UNLOCKS ARE STILL NOT MAPPED, which matters more than the items
+     because §7.2 filters draws by capability.
 
- 11. LEVEL CAPS are not here at all. If the run uses a per-badge cap, it has to
-     be added -- it is a rule, not map data.
+  8. GATES are still my reconstruction rather than flag-verified.
+
+  9. SAFARI ZONE, static and roaming encounters, and the Trick House are not
+     modelled.
+
+ 10. LEVEL CAPS are a rule, not map data, and are not here.
 
 ==============================================================================
